@@ -1,0 +1,309 @@
+diff --git a/__init__.py b/__init__.py
+new file mode 100755
+index 0000000..e69de29
+diff --git a/st_hand.py b/st_hand.py
+new file mode 100755
+index 0000000..de76e19
+--- /dev/null
++++ b/st_hand.py
+@@ -0,0 +1,79 @@
++from st_servo import StServo, SMS_STS_MODE
++import time
++
++def main():
++    port = StServo.find_port()
++    if port is None:
++        print("Servo port not found")
++        return
++    print(f"Connecting to {port}...")
++    try:
++        servo = StServo(port)
++    except Exception as e:
++        print(f"Failed to open port: {e}")
++        return
++
++    # IDs to test. Currently testing with ID 1 as discovered.
++    # Add more IDs here if you have multiple servos connected.
++    ids = [1, 2, 3, 4]
++
++    print("--------------------------------------------------")
++    print(" READING INITIAL STATUS ")
++    print("--------------------------------------------------")
++    for id in ids:
++        ping_resp = servo.ping(id)
++        if ping_resp is None:
++            print(f"ID {id}: Ping Failed")
++            continue
++
++        pos = servo.get_position(id)
++        volt = servo.get_voltage(id)  # 0.1V units usually
++        temp = servo.get_temperature(id)
++        mode = servo.read_byte(id, SMS_STS_MODE)
++
++        print(f"ID {id}: Ping OK")
++        print(f"  Position: {pos}")
++        print(f"  Voltage:  {volt/10.0 if volt else '?'} V")
++        print(f"  Temp:     {temp} C")
++        print(f"  Mode:     {mode} (0=Pos, 1=Wheel)")
++        print("")
++
++    print("--------------------------------------------------")
++    print(" POSITION MODE TEST ")
++    print("--------------------------------------------------")
++    # Ensure Position Mode
++    servo.set_mode(ids, 0)
++    servo.enable_torque(ids, True)
++
++    for k in range(1):
++        # # Move to 0
++        # print("Moving to 0 (Time=1000ms)...")
++        # servo.set_position(ids, 0, time=1000)
++        # time.sleep(1.5)
++        # for id in ids:
++        #     print(f"ID {id} Pos: {servo.get_position(id)}")
++
++        # # Move to 4096
++        # print("Moving to 4096 (Time=1000ms)...")
++        # servo.set_position(ids, 4096, time=1000)
++        # time.sleep(1.5)
++        # for id in ids:
++        #     print(f"ID {id} Pos: {servo.get_position(id)}")
++
++        # Move to (3072) open
++        # print("Moving to 3072 (Time=1000ms)...")
++        # servo.set_position(ids, 3072, time=1000)
++        # time.sleep(1.5)
++
++        # close
++        # print("Moving to 1024 (Time=1000ms)...")
++        servo.set_position(ids, 2600, time=1000)
++        # time.sleep(1.5)
++
++    # servo.enable_torque(ids, False)  # Optional: disable torque
++
++    print("Done.")
++
++
++if __name__ == '__main__':
++    main()
+diff --git a/st_servos_scan.py b/st_servos_scan.py
+new file mode 100755
+index 0000000..8105a18
+--- /dev/null
++++ b/st_servos_scan.py
+@@ -0,0 +1,80 @@
++
++"""
++Scan for ST Servos and optionally rename one.
++
++Usage:
++    scan_servos.py [options]
++
++Options:
++    --new-id <id>    New ID to assign (0-253). Only works if exactly one servo is connected.
++"""
++from st_servo import StServo
++import time
++import tyro
++from typing import Optional, Annotated
++
++
++def scan_servos(new_id: Annotated[Optional[int], tyro.conf.Positional] = None):
++    """
++    Scan for ST Servos and optionally rename one.
++
++    Args:
++        new_id: New ID to assign (0-253). Only works if exactly one servo is connected.
++    """
++    port = StServo.find_port()
++    if port is None:
++        print("Servo port not found")
++        return
++    print(f"Connecting to {port}...")
++    try:
++        servo = StServo(port)
++    except Exception as e:
++        print(f"Failed to open port: {e}")
++        return
++
++    print("Scanning for servos...")
++    start_time = time.time()
++
++    # Try Broadcast Ping for quick info (optional)
++    try:
++        ret = servo.ping(254)
++        if ret:
++            f_id, err, _ = ret
++            if f_id != 254:
++                print(f"Broadcast Ping reply from ID {f_id}! (Checking for others...)")
++    except Exception:
++        pass
++
++    # Always perform full sequential scan to ensure we find ALL connected servos
++    # (Broadcast ping stops at first reply and is unreliable for multi-servo counting)
++    found_servos = servo.scan()
++
++    duration = time.time() - start_time
++    print(f"\nScan Complete in {duration:.2f}s. Found {len(found_servos)} servos: {found_servos}")
++
++    if new_id is not None:
++        if len(found_servos) == 1:
++            current_id = found_servos[0]
++            if current_id == new_id:
++                print(f"Servo is already at ID {new_id}. No change needed.")
++            else:
++                print(f"Renaming Servo {current_id} to {new_id}...")
++                servo.write_id(current_id, new_id)
++                time.sleep(0.1)  # Wait for write
++
++                # Verify
++                print(f"Verifying ID {new_id}...")
++                if servo.ping(new_id):
++                    print("Success!")
++                else:
++                    print("Verification failed. Please check connection.")
++
++                print("Done. Please power cycle the servo if it doesn't respond immediately.")
++        elif len(found_servos) == 0:
++            print("Error: No servo found. Cannot rename.")
++        else:
++            print(f"Error: Multiple servos found {found_servos}. Please connect only one servo to rename.")
++
++
++if __name__ == "__main__":
++    tyro.cli(scan_servos)
+diff --git a/example_hls3915.py b/example_hls3915.py
+new file mode 100755
+index 0000000..e7425a9
+--- /dev/null
++++ b/example_hls3915.py
+@@ -0,0 +1,129 @@
++#!/usr/bin/env python
++"""
++Example: Control Feetech HLS3915 servo via SCS protocol.
++
++Hardware setup:
++  - HLS3915 uses half-duplex UART (single wire for TX+RX)
++  - Typical interface: USB-to-serial adapter wired to servo bus
++  - Default baud: 1,000,000 bps, default ID: 1
++
++Position encoding:
++  - 0–4095 raw counts over 360°  (≈0.088° per count)
++  - Signed: bit 15 = sign, bits 14:0 = magnitude (scs_tohost convention)
++  - Center = 2048
++
++Speed encoding:
++  - 0 = max speed (no limit)
++  - 1–32767: signed magnitude, bit 15 = direction
++
++Torque limit:
++  - 0–1000 (0.1% units), 1000 = 100% rated torque
++"""
++
++import sys
++import time
++
++# Add reference library to path (adjust as needed for your project layout)
++sys.path.insert(0, "reference/ft_servo/orca_core")
++
++from orca_core.hardware.feetech.port_handler import PortHandler
++from orca_core.hardware.feetech.hls import hls
++from orca_core.hardware.feetech.scservo_def import COMM_SUCCESS
++
++# ── Config ────────────────────────────────────────────────────────────────────
++PORT = "/dev/ttyACM0"
++BAUDRATE = 1_000_000
++SERVO_ID = 1
++
++# Motion parameters
++ACC = 50           # acceleration (0–254); higher = snappier
++SPEED = 1000       # raw speed units; 0 = max
++TORQUE_LIMIT = 500 # 0–1000 (50% rated torque)
++
++# Position targets (raw counts, 0–4095, center = 2048)
++POS_CENTER = 2048
++POS_LEFT   = 1024   # ~90° CCW from center
++POS_RIGHT  = 3072   # ~90° CW  from center
++# ──────────────────────────────────────────────────────────────────────────────
++
++
++def open_port(port: str, baudrate: int) -> PortHandler:
++    ph = PortHandler(port)
++    ph.baudrate = baudrate
++    if not ph.openPort():
++        raise RuntimeError(f"Failed to open port {port}")
++    print(f"Opened {port} @ {baudrate} bps")
++    return ph
++
++
++def wait_done(servo: hls, servo_id: int, timeout: float = 5.0) -> None:
++    """Block until MOVING register clears or timeout."""
++    deadline = time.time() + timeout
++    while time.time() < deadline:
++        moving, result, _ = servo.ReadMoving(servo_id)
++        if result == COMM_SUCCESS and moving == 0:
++            return
++        time.sleep(0.02)
++    print("Warning: motion timeout")
++
++
++def move_to(servo: hls, servo_id: int, position: int,
++            speed: int = SPEED, acc: int = ACC,
++            torque: int = TORQUE_LIMIT) -> None:
++    """Send position command and wait for completion."""
++    result, error = servo.WritePosEx(servo_id, position, speed, acc, torque)
++    if result != COMM_SUCCESS:
++        print(f"WritePosEx failed: result={result}, error={error}")
++        return
++    wait_done(servo, servo_id)
++    pos, result, _ = servo.ReadPos(servo_id)
++    if result == COMM_SUCCESS:
++        print(f"  Reached position: {pos} (target {position})")
++
++
++def read_state(servo: hls, servo_id: int) -> None:
++    pos, result, _ = servo.ReadPos(servo_id)
++    if result != COMM_SUCCESS:
++        print(f"ReadPos failed: {result}")
++        return
++    speed, _, _ = servo.ReadSpeed(servo_id)
++    print(f"State — pos: {pos}, speed: {speed}")
++
++
++def main() -> None:
++    ph = open_port(PORT, BAUDRATE)
++    servo = hls(ph)
++
++    # Ping check
++    model, result, error = servo.ping(SERVO_ID)
++    if result != COMM_SUCCESS:
++        print(f"Ping failed (id={SERVO_ID}): result={result}")
++        ph.closePort()
++        sys.exit(1)
++    print(f"Ping OK — model number: {model}")
++
++    # Enable torque
++    servo.write1ByteTxRx(SERVO_ID, 40, 1)  # HLS_TORQUE_ENABLE = 40
++
++    print("Moving to center...")
++    move_to(servo, SERVO_ID, POS_CENTER)
++
++    print("Moving left...")
++    move_to(servo, SERVO_ID, POS_LEFT)
++
++    print("Moving right...")
++    move_to(servo, SERVO_ID, POS_RIGHT)
++
++    print("Back to center...")
++    move_to(servo, SERVO_ID, POS_CENTER)
++
++    read_state(servo, SERVO_ID)
++
++    # Disable torque
++    servo.write1ByteTxRx(SERVO_ID, 40, 0)
++    ph.closePort()
++    print("Done.")
++
++
++if __name__ == "__main__":
++    main()

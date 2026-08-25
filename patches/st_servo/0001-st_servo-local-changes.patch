@@ -1,0 +1,113 @@
+diff --git a/st_servo.py b/st_servo.py
+old mode 100644
+new mode 100755
+index 9ff8b83..6a9a129
+--- a/st_servo.py
++++ b/st_servo.py
+@@ -279,6 +279,56 @@ class StServo:
+                 data_list.append((sid, [val]))
+             self.sync_write(SMS_STS_TORQUE_ENABLE, 1, data_list)
+ 
++    def set_position_offset(self, id, target_pos):
++        """
++        Persistently sets the current physical position to report as target_pos.
++        Writes the calculated offset to the Pos Correction register in EPROM.
++        """
++        # Read current reported position
++        p_curr = self.get_position(id)
++        if p_curr is None:
++            print(f"Failed to read position for ID {id}")
++            return False
++
++        # Read current offset from Pos Correction register (Address 31)
++        raw_offset = self.read_word(id, SMS_STS_OFS_L)
++        if raw_offset is None:
++            print(f"Failed to read offset for ID {id}")
++            return False
++
++        # Decode current offset (Bit 11 is direction/sign)
++        magnitude = raw_offset & 0x07FF
++        sign = -1 if (raw_offset & 0x0800) else 1
++        o_curr = sign * magnitude
++
++        # Calculate raw absolute position (without current offset)
++        p_raw = (p_curr - o_curr) % 4096
++
++        # Calculate new offset required to make p_raw report as target_pos
++        o_new = (target_pos - p_raw) % 4096
++
++        # Wrap offset to fit within the servo's +/- 2047 register limit
++        # A shift of +3000 is identical to -1096 in a 4096-step circle
++        if o_new > 2047:
++            o_new -= 4096
++
++        # Encode the new offset back into the servo's sign-magnitude format
++        new_magnitude = abs(o_new)
++        new_raw_offset = new_magnitude & 0x07FF
++        if o_new < 0:
++            new_raw_offset |= 0x0800
++
++        # Split into Low and High bytes for writing
++        offset_l = new_raw_offset & 0xFF
++        offset_h = (new_raw_offset >> 8) & 0xFF
++
++        # EPROM Write Sequence: Unlock -> Write -> Lock
++        self.unlock_eprom(id)
++        self.write_register(id, SMS_STS_OFS_L, [offset_l, offset_h], wait_response=True)
++        self.lock_eprom(id)
++
++        return True
++
+     def unlock_eprom(self, id):
+         return self.write_register(id, SMS_STS_LOCK, [0])
+ 
+@@ -315,9 +365,48 @@ class StServo:
+         self.serial.timeout = original_timeout
+         return found
+ 
++    @classmethod
++    def find_port(cls, baudrate=1000000, timeout=0.1):
++        """
++        Auto-discover the ST Servo port by device name pattern.
++        The servo uses a CH340 USB-Serial chip (usb-1a86_USB_Single_Serial_*),
++        which differs from the IMU's STM32 Virtual ComPort.
++        Falls back to probing if name matching finds nothing.
++        """
++        import glob, os
++
++        # First: match by device name pattern
++        for link in glob.glob("/dev/serial/by-id/*"):
++            name = os.path.basename(link)
++            if "USB_Single_Serial" in name or "1a86" in name:
++                port_path = os.path.realpath(link)
++                return port_path
++
++        # Fallback: probe /dev/ttyACM* with broadcast ping
++        for port_path in sorted(glob.glob("/dev/ttyACM*")):
++            try:
++                s = serial.Serial(port_path, baudrate, timeout=timeout)
++                s.reset_input_buffer()
++                length = 2  # id + length
++                checksum = (~(254 + length + INST_PING)) & 0xFF
++                packet = bytearray([0xFF, 0xFF, 254, length, INST_PING, checksum])
++                s.write(packet)
++                # Try to read response
++                header = s.read(2)
++                if len(header) == 2 and header[0] == 0xFF and header[1] == 0xFF:
++                    s.close()
++                    return port_path
++                s.close()
++            except Exception:
++                pass
++        return None
++
+ 
+ def main():
+-    port = '/dev/ttyACM0'
++    port = StServo.find_port()
++    if port is None:
++        print("Servo port not found")
++        return
+     print(f"Connecting to {port}...")
+     try:
+         servo = StServo(port)

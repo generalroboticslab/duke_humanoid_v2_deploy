@@ -1,0 +1,110 @@
+# Prerequisites
+*.d
+
+# Compiled Object files
+*.slo
+*.lo
+*.o
+
+# Precompiled Headers
+*.gch
+*.pch
+
+# Compiled Dynamic libraries
+*.so
+*.dylib
+*.dll
+
+# Fortran module files
+*.mod
+*.smod
+
+# Compiled Static libraries
+*.lai
+*.la
+*.a
+*.lib
+
+# Executables
+*.exe
+*.out
+*.app
+
+
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Distribution / packaging
+.Python
+build/
+build2/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+share/python-wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# vcpkg manifest-mode install tree (control/vcpkg_installed/)
+vcpkg_installed/
+
+# Virtualenvs, tool caches, editor swap files
+.venv/
+venv/
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+*.swp
+.DS_Store
+
+# Local tooling / editor state — never published
+.vscode/
+.idea/
+.claude/
+.rtk/
+.antigravitycli/
+CLAUDE.md
+GEMINI.md
+control/MEMORY.md
+control/memory/
+control/docs/SITE_NOTES.local.md
+
+# Per-installation site configuration (see control/site_local.example.py
+# and perception/vs_site.py) and CMake's per-user preset file.
+control/site_local.py
+perception/vs_site_local.py
+control/CMakeUserPresets.json
+
+# Pinned third-party checkout, not vendored: clone it here at the commit and
+# with the patches named in patches/README.md.
+control/st_servo/
+
+# Internal bench captures (sine-wave joint tracking), ~10 MB of CSV.
+control/lower_body_sine_wave_matching/
+
+# Mission recordings and logs: large binaries, never in the source tree.
+control/recordings/
+control/logs/
+control/logs_old/
+control/logs_old2/
+*.log
+*.pkl
+nohup.out
+MUJOCO_LOG.TXT
+
+# Manual backups. Use git.
+*.bak
+*.bak_*
+*.orig

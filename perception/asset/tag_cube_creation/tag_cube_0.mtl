@@ -1,0 +1,11 @@
+newmtl white_mat
+Ka 0.95 0.95 0.95
+Kd 0.95 0.95 0.95
+Ks 0.05 0.05 0.05
+illum 2
+
+newmtl black_mat
+Ka 0.04 0.04 0.04
+Kd 0.04 0.04 0.04
+Ks 0.00 0.00 0.00
+illum 2

@@ -1,0 +1,12 @@
+# Diff and line-ending policy for binary, vendor and CAD assets: pins the CRLF
+# vendor/CAD files exactly as committed. Nothing in this tree is normalised.
+*.obj -diff -text
+*.mtl -text
+*.step -diff -text
+*.pt binary
+*.pdf binary
+*.npz binary
+*.png binary
+*.stl binary
+*.csv -text
+control/hardware_bindings/imu/EasyProfile/** -text

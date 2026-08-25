@@ -1,0 +1,63 @@
+# Runtime dependencies of the Duke Humanoid V2 control stack.
+#
+# Versions are those the robot actually runs (Python 3.12.13), taken from the
+# robot computer's environment rather than from a resolver -- this stack is
+# validated against these, not against "latest".
+#
+# torch: the robot runs 2.9.1+rocm6.3. The ROCm build is an AMD-GPU detail of
+# that machine, not a requirement of this code; install the +cpu, +cu1xx or
+# +rocm wheel that matches your hardware, keeping the 2.9.1 version. The
+# offline test suite needs no GPU at all.
+#
+# NOT listed here, by design, because neither is a PyPI package:
+#   legged_env_v2 / mj_envs   supplies the deploy MJCF (+ meshes), weights and
+#                             env_config AND runtime modules: mj_envs.utils.ik_mink,
+#                             torch_math_utils, the ReachabilityGate, the plan
+#                             server's curobo planner/scene. Not public at release.
+#   cuRobo                    NVIDIA licence; runs on the GPU machine only
+# See README.md, "Install".
+
+# --- control stack ---------------------------------------------------------
+numpy==2.4.6
+scipy==1.17.1
+torch==2.9.1
+mujoco==3.10.0
+mujoco-warp==3.10.0.3
+# reached at import time through legged_env_v2's mj_envs.utils.ik_mink (IK for
+# --use-ik and the arm stream); daqp is its default QP backend
+qpsolvers==4.12.0
+daqp==0.8.7
+tyro==1.0.13
+PyYAML==6.0.3
+msgpack==1.2.0
+pynng==0.9.0
+orjson==3.11.9
+opencv-python==4.13.0.92
+viser==1.0.30
+trimesh==4.12.2
+matplotlib==3.11.0   # optional-grade: tag-sheet generators (perception/asset)
+                     # and, lazily, humanoid_profile_motor_latency
+tqdm==4.68.2
+loop-rate-limiters==1.2.0
+pyserial==3.5        # optional-grade: ft_servo_python_only helpers and
+                     # torque_sensor_test; the gripper service uses the C++ ext
+pygame==2.6.1        # both reached from humanoid_real_env via
+sshkeyboard==2.3.1   # keyboard_gamepad_controller
+
+# --- perception/ -----------------------------------------------------------
+simplejpeg==1.9.0            # camera_streaming_utils
+pupil_apriltags==1.0.4.post11  # camera_tag_detection
+moms-apriltag==2023.1.15     # tagged_rigid_body
+numba==0.65.1                # common/rotation_utils
+pyrealsense2==2.58.1.10581   # camera_realsense_utils, reached from humanoid_monitor
+
+# --- optional --------------------------------------------------------------
+# Uncomment for the feature you need:
+#   dearpygui     the motor GUI
+#   pyvicon       Vicon motion capture
+#   cadquery      regenerating the printable tag-cube assets
+#   imageio       regenerating the printable tag sheets
+# dearpygui
+# pyvicon
+# cadquery
+# ImageIO==2.37.3

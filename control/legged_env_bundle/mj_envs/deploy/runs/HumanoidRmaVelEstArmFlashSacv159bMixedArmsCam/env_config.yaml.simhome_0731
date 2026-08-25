@@ -1,0 +1,480 @@
+simulation:
+  timestep: 0.005
+  decimation: 4
+  control_freq: 50.0
+  gravity_compensation:
+  - shoulder
+  - elbow
+  - wrist
+default_pose:
+  root_position:
+  - 0
+  - 0
+  - 0.59
+  joint_pos:
+    left_hip_1_joint: 0.3321831524372101
+    left_hip_2_joint: 0.013716209679841995
+    left_hip_3_joint: -0.08450339734554291
+    left_knee_joint: 0.6432819366455078
+    left_ankle_1_joint: 0.3216409683227539
+    left_ankle_2_joint: 0.0
+    right_hip_1_joint: -0.3321831524372101
+    right_hip_2_joint: -0.013716209679841995
+    right_hip_3_joint: 0.08450339734554291
+    right_knee_joint: -0.6432819366455078
+    right_ankle_1_joint: -0.3216409683227539
+    right_ankle_2_joint: -0.0
+    # ARMS: THE SIMULATOR'S HOME, 2026-07-31 (user, translated): "cuRobo's
+    # initial posture / power-on position / home MUST match the sim's
+    # home pose". These are cuRobo's
+    # HUMANOID_ARM_JOINT_HOME (_REACH_READY_ARM_JOINT_POS in lev2_master
+    # mj_envs/tasks/visual_manipulation/curobo/ik_curobo_robot_cfg.py)
+    # folded through the units seam: enc = SIGN*cspace + qpos0, which shifts
+    # wrist_1 by its -pi/2 ref (cspace +0.3305 -> enc -1.2403) and flips
+    # left_wrist_2's sign (cspace +1.4546 -> enc -1.4546); all other joints
+    # pass through unchanged. With this, sim home == server planning_home ==
+    # robot power-on == chest home: ONE home on both sides of the bridge.
+    # History: low tuck until 07-29, raised chest posture
+    # (-0.4435, -0.2747, 0.0743, 1.754, -1.4812, -0.4797, -0.0125) 07-30.
+    #
+    # SAFE FOR THE POLICY, and worth stating why rather than trusting it. In
+    # this deployment default_pose does NOT enter the observation and is NOT
+    # the arms' action baseline: joint_pos is observed absolutely,
+    # target_arm_joint_pos is the commanded arm target absolutely, and the
+    # arms' PD baseline is current_target_arm_pos with the policy action added
+    # on top (humanoid_real_env step()). What default_pose actually drives is
+    # (1) the prepare() startup ramp target, (2) current_target_arm_pos's
+    # initial value, (3) the arm-silence failsafe destination. The LEGS are
+    # untouched. The 07-28 dynamics validation (8/10 grasps) ran with the RL
+    # policy standing AT this exact posture, so the policy-load question has
+    # sim evidence; the prepare() ramp now travels ~67 deg at shoulder_1 from
+    # the old low tuck -- first power-on after this change should be watched
+    # hanging, legs straight.
+    #
+    # Mirrors humanoid_auto_operator.POWERON_JOINTS; a guard test compares the
+    # two so they cannot drift apart. Right arm = left negated, per joint.
+    left_shoulder_1_joint: -1.3740
+    right_shoulder_1_joint: 1.3740
+    left_shoulder_2_joint: -0.1870
+    right_shoulder_2_joint: 0.1870
+    left_shoulder_3_joint: 0.1310
+    right_shoulder_3_joint: -0.1310
+    left_elbow_joint: 1.9290
+    right_elbow_joint: -1.9290
+    left_wrist_1_joint: -1.2403
+    right_wrist_1_joint: 1.2403
+    left_wrist_2_joint: -1.4546
+    right_wrist_2_joint: 1.4546
+    left_wrist_3_joint: -0.0090
+    right_wrist_3_joint: 0.0090
+observation:
+  actor:
+    base_ang_vel:
+      history_length: 20
+      flatten_history_dim: false
+      scale: null
+      clip: null
+      delay_hold_prob: 0.0
+      delay_max_lag: 0
+      delay_min_lag: 0
+      term_dim: 3
+      params: {}
+    projected_gravity:
+      history_length: 20
+      flatten_history_dim: false
+      scale: null
+      clip: null
+      delay_hold_prob: 0.0
+      delay_max_lag: 0
+      delay_min_lag: 0
+      term_dim: 3
+      params: {}
+    joint_pos:
+      history_length: 20
+      flatten_history_dim: false
+      scale: null
+      clip: null
+      delay_hold_prob: 0.0
+      delay_max_lag: 2
+      delay_min_lag: 0
+      term_dim: 31
+      params: {}
+    joint_vel:
+      history_length: 20
+      flatten_history_dim: false
+      scale: null
+      clip: null
+      delay_hold_prob: 0.0
+      delay_max_lag: 2
+      delay_min_lag: 0
+      term_dim: 31
+      params: {}
+    actions:
+      history_length: 20
+      flatten_history_dim: false
+      scale: null
+      clip: null
+      delay_hold_prob: 0.0
+      delay_max_lag: 0
+      delay_min_lag: 0
+      term_dim: 31
+      params: {}
+    command:
+      history_length: 20
+      flatten_history_dim: false
+      scale: null
+      clip: null
+      delay_hold_prob: 0.0
+      delay_max_lag: 0
+      delay_min_lag: 0
+      term_dim: 3
+      params: {}
+    target_arm_joint_pos:
+      history_length: 20
+      flatten_history_dim: false
+      scale: null
+      clip: null
+      delay_hold_prob: 0.0
+      delay_max_lag: 0
+      delay_min_lag: 0
+      term_dim: 14
+      params: {}
+    target_camera_joint_pos:
+      history_length: 20
+      flatten_history_dim: false
+      scale: null
+      clip: null
+      delay_hold_prob: 0.0
+      delay_max_lag: 0
+      delay_min_lag: 0
+      term_dim: 4
+      params: {}
+  critic:
+    base_ang_vel:
+      history_length: 0
+      flatten_history_dim: true
+      scale: null
+      clip: null
+      delay_hold_prob: 0.0
+      delay_max_lag: 0
+      delay_min_lag: 0
+      term_dim: 3
+      params: {}
+    projected_gravity:
+      history_length: 0
+      flatten_history_dim: true
+      scale: null
+      clip: null
+      delay_hold_prob: 0.0
+      delay_max_lag: 0
+      delay_min_lag: 0
+      term_dim: 3
+      params: {}
+    joint_pos:
+      history_length: 0
+      flatten_history_dim: true
+      scale: null
+      clip: null
+      delay_hold_prob: 0.0
+      delay_max_lag: 2
+      delay_min_lag: 0
+      term_dim: 31
+      params: {}
+    joint_vel:
+      history_length: 0
+      flatten_history_dim: true
+      scale: null
+      clip: null
+      delay_hold_prob: 0.0
+      delay_max_lag: 2
+      delay_min_lag: 0
+      term_dim: 31
+      params: {}
+    actions:
+      history_length: 0
+      flatten_history_dim: true
+      scale: null
+      clip: null
+      delay_hold_prob: 0.0
+      delay_max_lag: 0
+      delay_min_lag: 0
+      term_dim: 31
+      params: {}
+    command:
+      history_length: 0
+      flatten_history_dim: true
+      scale: null
+      clip: null
+      delay_hold_prob: 0.0
+      delay_max_lag: 0
+      delay_min_lag: 0
+      term_dim: 3
+      params: {}
+    base_lin_vel:
+      history_length: 0
+      flatten_history_dim: true
+      scale: null
+      clip: null
+      delay_hold_prob: 0.0
+      delay_max_lag: 0
+      delay_min_lag: 0
+      term_dim: 3
+      params: {}
+    foot_height:
+      history_length: 0
+      flatten_history_dim: true
+      scale: null
+      clip: null
+      delay_hold_prob: 0.0
+      delay_max_lag: 0
+      delay_min_lag: 0
+      term_dim: 2
+      params: {}
+    foot_air_time:
+      history_length: 0
+      flatten_history_dim: true
+      scale: null
+      clip: null
+      delay_hold_prob: 0.0
+      delay_max_lag: 0
+      delay_min_lag: 0
+      term_dim: 2
+      params: {}
+    foot_contact:
+      history_length: 0
+      flatten_history_dim: true
+      scale: null
+      clip: null
+      delay_hold_prob: 0.0
+      delay_max_lag: 0
+      delay_min_lag: 0
+      term_dim: 2
+      params: {}
+    foot_contact_forces:
+      history_length: 0
+      flatten_history_dim: true
+      scale: null
+      clip: null
+      delay_hold_prob: 0.0
+      delay_max_lag: 0
+      delay_min_lag: 0
+      term_dim: 6
+      params: {}
+    joint_torque:
+      history_length: 0
+      flatten_history_dim: true
+      scale: null
+      clip: null
+      delay_hold_prob: 0.0
+      delay_max_lag: 0
+      delay_min_lag: 0
+      term_dim: 31
+      params: {}
+    command_integral:
+      history_length: 0
+      flatten_history_dim: true
+      scale: null
+      clip: null
+      delay_hold_prob: 0.0
+      delay_max_lag: 0
+      delay_min_lag: 0
+      term_dim: 3
+      params: {}
+  estimator_target:
+    base_lin_vel:
+      history_length: 0
+      flatten_history_dim: true
+      scale: null
+      clip: null
+      delay_hold_prob: 0.0
+      delay_max_lag: 0
+      delay_min_lag: 0
+      term_dim: 3
+      params: {}
+action:
+  dim: 31
+  low_pass_alpha: 1.0
+  clip_actions: 1.0
+  controlled_joints:
+  - waist_joint
+  - left_hip_1_joint
+  - left_hip_2_joint
+  - left_hip_3_joint
+  - left_knee_joint
+  - left_ankle_1_joint
+  - left_ankle_2_joint
+  - right_hip_1_joint
+  - right_hip_2_joint
+  - right_hip_3_joint
+  - right_knee_joint
+  - right_ankle_1_joint
+  - right_ankle_2_joint
+  - left_shoulder_1_joint
+  - left_shoulder_2_joint
+  - left_shoulder_3_joint
+  - left_elbow_joint
+  - left_wrist_1_joint
+  - left_wrist_2_joint
+  - left_wrist_3_joint
+  - right_shoulder_1_joint
+  - right_shoulder_2_joint
+  - right_shoulder_3_joint
+  - right_elbow_joint
+  - right_wrist_1_joint
+  - right_wrist_2_joint
+  - right_wrist_3_joint
+  - cam_yaw_left
+  - cam_pitch_left
+  - cam_yaw_right
+  - cam_pitch_right
+actuators:
+- joints:
+  - waist_joint
+  kp: 40.0
+  kd: 4.0
+  action_scale: 0.6
+  effort_limit: 48.0
+  armature: 0.02
+  joint_damping: 0.0
+  joint_friction: 0.2
+- joints:
+  - .*_hip_1_joint
+  kp: 40.0
+  kd: 4.0
+  action_scale: 0.6
+  effort_limit: 48.0
+  armature: 0.02
+  joint_damping: 0.0
+  joint_friction: 0.2
+- joints:
+  - .*_hip_2_joint
+  kp: 40.0
+  kd: 4.0
+  action_scale: 0.6
+  effort_limit: 48.0
+  armature: 0.02
+  joint_damping: 0.0
+  joint_friction: 0.5
+- joints:
+  - .*_hip_3_joint
+  kp: 40.0
+  kd: 4.0
+  action_scale: 0.6
+  effort_limit: 48.0
+  armature: 0.02
+  joint_damping: 0.0
+  joint_friction: 0.2
+- joints:
+  - .*_knee_joint
+  kp: 60.0
+  kd: 4.0
+  action_scale: 0.6
+  effort_limit: 72.0
+  armature: 0.04
+  joint_damping: 0.0
+  joint_friction: 0.5
+- joints:
+  - .*_ankle_1_joint
+  kp: 40.0
+  kd: 4.0
+  action_scale: 0.6
+  effort_limit: 48.0
+  armature: 0.02
+  joint_damping: 0.0
+  joint_friction: 0.2
+- joints:
+  - .*_ankle_2_joint
+  kp: 40.0
+  kd: 4.0
+  action_scale: 0.36
+  effort_limit: 28.8
+  armature: 0.012
+  joint_damping: 0.0
+  joint_friction: 0.5
+- joints:
+  - .*_shoulder_1_joint
+  kp: 40.0
+  kd: 4.0
+  action_scale: 0.6
+  effort_limit: 48.0
+  armature: 0.02
+  joint_damping: 0.0
+  joint_friction: 0.5
+- joints:
+  - .*_shoulder_2_joint
+  kp: 40.0
+  kd: 4.0
+  action_scale: 0.36
+  effort_limit: 28.8
+  armature: 0.012
+  joint_damping: 0.0
+  joint_friction: 0.2
+- joints:
+  - .*_shoulder_3_joint
+  kp: 40.0
+  kd: 4.0
+  action_scale: 0.2
+  effort_limit: 13.600000000000001
+  armature: 0.0042
+  joint_damping: 0.0
+  joint_friction: 0.1
+- joints:
+  - .*_elbow_joint
+  kp: 30.0
+  kd: 2.0
+  action_scale: 0.22666666666666668
+  effort_limit: 13.600000000000001
+  armature: 0.0042
+  joint_damping: 0.0
+  joint_friction: 0.1
+- joints:
+  - .*_wrist_1_joint
+  kp: 30.0
+  kd: 2.0
+  action_scale: 0.22666666666666668
+  effort_limit: 13.600000000000001
+  armature: 0.0042
+  joint_damping: 0.0
+  joint_friction: 0.1
+- joints:
+  - .*_wrist_2_joint
+  kp: 15.0
+  kd: 1.0
+  action_scale: 0.37333333333333335
+  effort_limit: 11.200000000000001
+  armature: 0.0007
+  joint_damping: 0.0
+  joint_friction: 0.05
+- joints:
+  - .*_wrist_3_joint
+  kp: 15.0
+  kd: 1.0
+  action_scale: 0.2
+  effort_limit: 4.4
+  armature: 0.001
+  joint_damping: 0.0
+  joint_friction: 0.05
+- joints:
+  - cam_yaw_(left|right)
+  kp: 5.0
+  kd: 0.3
+  action_scale: 0.3
+  effort_limit: 4.4
+  armature: 0.001
+  joint_damping: 0.0
+  joint_friction: 0.05
+- joints:
+  - cam_pitch_(left|right)
+  kp: 5.0
+  kd: 0.3
+  action_scale: 0.2
+  effort_limit: 4.4
+  armature: 0.001
+  joint_damping: 0.0
+  joint_friction: 0.05
+foot_bodies:
+- foot_L
+- foot_R
+obs_dim: 120
+policy_obs_group: actor
+has_velocity_estimator: false

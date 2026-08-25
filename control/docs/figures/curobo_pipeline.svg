@@ -1,0 +1,213 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="900" viewBox="0 0 1600 900" font-family="Arial, Helvetica, sans-serif">
+  <defs>
+    <marker id="mkB" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#2a78d6"/></marker>
+    <marker id="mkV" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#4a3aa7"/></marker>
+    <marker id="mkG" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#8a8984"/></marker>
+  </defs>
+
+  <rect x="0" y="0" width="1600" height="900" fill="#ffffff"/>
+
+  <!-- ═══ Title ═══ -->
+  <text x="60" y="66" font-size="30" font-weight="bold" fill="#0b0b0b">cuRobo Integration in the Grasp Pipeline</text>
+  <text x="60" y="94" font-size="15" fill="#52514e">Planning is replaced; perception, grasping and every safety mechanism are unchanged — the operator remains the independent fallback.</text>
+
+  <!-- ═══ Legend (top right) ═══ -->
+  <g font-size="12.5" fill="#52514e">
+    <rect x="1048" y="46" width="14" height="14" rx="3" fill="#eaf2fc" stroke="#2a78d6" stroke-width="1.5"/>
+    <text x="1068" y="57.5">operator — reused verbatim</text>
+    <rect x="1248" y="46" width="14" height="14" rx="3" fill="#edeafa" stroke="#4a3aa7" stroke-width="1.5"/>
+    <text x="1268" y="57.5">new — cuRobo bridge</text>
+    <rect x="1420" y="46" width="14" height="14" rx="3" fill="#fdf3dd" stroke="#eda100" stroke-width="1.5"/>
+    <text x="1440" y="57.5">safety gates</text>
+  </g>
+
+  <!-- ═══ Pipeline stages ═══ -->
+  <!-- 1 · SCAN & LOCK -->
+  <g>
+    <rect x="60" y="130" width="230" height="240" rx="10" fill="#eaf2fc" stroke="#2a78d6" stroke-width="1.5"/>
+    <circle cx="74" cy="144" r="14" fill="#2a78d6"/><text x="74" y="149" font-size="14" font-weight="bold" fill="#ffffff" text-anchor="middle">1</text>
+    <text x="96" y="150" font-size="16" font-weight="bold" fill="#2a78d6">SCAN &amp; LOCK</text>
+    <line x1="74" y1="166" x2="276" y2="166" stroke="#2a78d6" stroke-width="0.75" opacity="0.5"/>
+    <g font-size="12.5" fill="#0b0b0b">
+      <text x="74" y="190">Dual-camera serpentine</text>
+      <text x="74" y="210">4 × 360° rows · 30/45/60/15°</text>
+      <text x="74" y="230">Per-cube camera claims</text>
+      <text x="74" y="250">0.3 s confirm streak</text>
+      <text x="74" y="270">Median over 0.7 s window</text>
+    </g>
+    <text x="74" y="352" font-size="11" font-style="italic" fill="#2a78d6">operator machinery — verbatim</text>
+  </g>
+  <line x1="290" y1="250" x2="308" y2="250" stroke="#8a8984" stroke-width="2" marker-end="url(#mkG)"/>
+
+  <!-- 2 · WORLD MODEL -->
+  <g>
+    <rect x="310" y="130" width="230" height="240" rx="10" fill="#edeafa" stroke="#4a3aa7" stroke-width="1.5"/>
+    <circle cx="324" cy="144" r="14" fill="#4a3aa7"/><text x="324" y="149" font-size="14" font-weight="bold" fill="#ffffff" text-anchor="middle">2</text>
+    <text x="346" y="150" font-size="16" font-weight="bold" fill="#4a3aa7">WORLD MODEL</text>
+    <line x1="324" y1="166" x2="526" y2="166" stroke="#4a3aa7" stroke-width="0.75" opacity="0.5"/>
+    <g font-size="12.5" fill="#0b0b0b">
+      <text x="324" y="190">Cuboids in base frame:</text>
+      <text x="324" y="210">· table (CLI / AprilTag hook)</text>
+      <text x="324" y="230">· every SEEN cube = obstacle</text>
+      <text x="324" y="250">  (incl. target · +2 cm z-pad)</text>
+      <text x="324" y="270">Unseen ⇒ nonexistent</text>
+    </g>
+  </g>
+  <line x1="540" y1="250" x2="558" y2="250" stroke="#8a8984" stroke-width="2" marker-end="url(#mkG)"/>
+
+  <!-- 3 · PLAN -->
+  <g>
+    <rect x="560" y="130" width="230" height="240" rx="10" fill="#edeafa" stroke="#4a3aa7" stroke-width="1.5"/>
+    <circle cx="574" cy="144" r="14" fill="#4a3aa7"/><text x="574" y="149" font-size="14" font-weight="bold" fill="#ffffff" text-anchor="middle">3</text>
+    <text x="596" y="150" font-size="16" font-weight="bold" fill="#4a3aa7">PLAN — remote GPU</text>
+    <line x1="574" y1="166" x2="776" y2="166" stroke="#4a3aa7" stroke-width="0.75" opacity="0.5"/>
+    <g font-size="12.5" fill="#0b0b0b">
+      <text x="574" y="190">One request per motion:</text>
+      <text x="574" y="210">grasp goalset — 12 poses</text>
+      <text x="574" y="230">arm assignment (L / R)</text>
+      <text x="574" y="250">joint trajectory H≈500 · 25 ms</text>
+      <text x="574" y="270">INFEASIBLE ⇒ retry ×5 (0.15 s)</text>
+    </g>
+    <text x="574" y="352" font-size="11" font-style="italic" fill="#4a3aa7">cuRobo · one round-trip, 0.2–1.1 s</text>
+  </g>
+  <line x1="790" y1="250" x2="808" y2="250" stroke="#8a8984" stroke-width="2" marker-end="url(#mkG)"/>
+
+  <!-- 4 · VERIFY -->
+  <g>
+    <rect x="810" y="130" width="230" height="240" rx="10" fill="#fdf3dd" stroke="#eda100" stroke-width="1.5"/>
+    <circle cx="824" cy="144" r="14" fill="#eda100"/><text x="824" y="149" font-size="14" font-weight="bold" fill="#ffffff" text-anchor="middle">4</text>
+    <text x="846" y="150" font-size="16" font-weight="bold" fill="#a06d00">VERIFY — 4 gates</text>
+    <line x1="824" y1="166" x2="1026" y2="166" stroke="#eda100" stroke-width="0.75" opacity="0.5"/>
+    <g font-size="12.5" fill="#0b0b0b">
+      <text x="824" y="190">On OUR deploy model:</text>
+      <text x="824" y="210">A · seam FK ≤ 20 mm</text>
+      <text x="824" y="230">B · start ≡ measured ≤ 0.05 rad</text>
+      <text x="824" y="250">C · clearance sweep ≥ 10 mm</text>
+      <text x="824" y="270">D · limit margin ≥ 0.02 rad</text>
+    </g>
+    <text x="824" y="352" font-size="11.5" font-weight="bold" fill="#e34948">any fail ⇒ REFUSE — zero packets</text>
+  </g>
+  <line x1="1040" y1="250" x2="1058" y2="250" stroke="#8a8984" stroke-width="2" marker-end="url(#mkG)"/>
+
+  <!-- 5 · PREVIEW -->
+  <g>
+    <rect x="1060" y="130" width="230" height="240" rx="10" fill="#e4f6ef" stroke="#1baf7a" stroke-width="1.5"/>
+    <circle cx="1074" cy="144" r="14" fill="#1baf7a"/><text x="1074" y="149" font-size="14" font-weight="bold" fill="#ffffff" text-anchor="middle">5</text>
+    <text x="1096" y="150" font-size="16" font-weight="bold" fill="#0e7a54">PREVIEW</text>
+    <line x1="1074" y1="166" x2="1276" y2="166" stroke="#1baf7a" stroke-width="0.75" opacity="0.5"/>
+    <g font-size="12.5" fill="#0b0b0b">
+      <text x="1074" y="190">Waypoints drawn LIVE into:</text>
+      <text x="1074" y="210">· camera first-person view</text>
+      <text x="1074" y="230">· 3D scene (base_link cloud)</text>
+      <text x="1074" y="250">green path · red endpoint ·</text>
+      <text x="1074" y="270">yellow goalset candidates</text>
+    </g>
+    <text x="1074" y="352" font-size="11" font-style="italic" fill="#0e7a54">dry-run waits for approval</text>
+  </g>
+  <line x1="1290" y1="250" x2="1308" y2="250" stroke="#8a8984" stroke-width="2" marker-end="url(#mkG)"/>
+
+  <!-- 6 · EXECUTE & GRASP -->
+  <g>
+    <rect x="1310" y="130" width="230" height="240" rx="10" fill="#edeafa" stroke="#4a3aa7" stroke-width="1.5"/>
+    <circle cx="1324" cy="144" r="14" fill="#4a3aa7"/><text x="1324" y="149" font-size="14" font-weight="bold" fill="#ffffff" text-anchor="middle">6</text>
+    <text x="1346" y="150" font-size="16" font-weight="bold" fill="#4a3aa7">EXECUTE · GRASP</text>
+    <line x1="1324" y1="166" x2="1526" y2="166" stroke="#4a3aa7" stroke-width="0.75" opacity="0.5"/>
+    <g font-size="12.5" fill="#0b0b0b">
+      <text x="1324" y="190">Stretch to ≤ 0.3 rad/s</text>
+      <text x="1324" y="210">20 Hz joint waypoints → :9874</text>
+      <text x="1324" y="230">real_env clamp · mink bypassed</text>
+      <text x="1324" y="250">Grasp: load-based · id-matched</text>
+      <text x="1324" y="270">fail-closed · then RETRACT ↩</text>
+    </g>
+    <text x="1324" y="352" font-size="11" font-style="italic" fill="#52514e">gripper + watchdogs unchanged</text>
+  </g>
+
+  <!-- Retract loop arrow: stage 6 back to stage 3 -->
+  <path d="M 1425 370 L 1425 396 L 675 396 L 675 376" fill="none" stroke="#4a3aa7" stroke-width="1.5" stroke-dasharray="6 4" marker-end="url(#mkV)"/>
+  <text x="800" y="390" font-size="11.5" fill="#4a3aa7">RETRACT = the same request again · goal = home · seeded at measured joints · in-hand cube removed from the world</text>
+
+  <!-- ═══ Panel L: Division of labor ═══ -->
+  <g>
+    <rect x="60" y="430" width="900" height="400" rx="10" fill="#fcfcfb" stroke="#c9c8c2" stroke-width="1.5"/>
+    <text x="86" y="466" font-size="18" font-weight="bold" fill="#0b0b0b">Division of Labor — cuRobo × mink IK</text>
+
+    <!-- Row: BEFORE -->
+    <rect x="86" y="492" width="72" height="24" rx="12" fill="#2a78d6"/>
+    <text x="122" y="508.5" font-size="12" font-weight="bold" fill="#ffffff" text-anchor="middle">BEFORE</text>
+    <rect x="176" y="486" width="176" height="52" rx="8" fill="#eaf2fc" stroke="#2a78d6" stroke-width="1.5"/>
+    <text x="264" y="516" font-size="12.5" fill="#0b0b0b" text-anchor="middle">Cartesian EE target</text>
+    <line x1="352" y1="512" x2="376" y2="512" stroke="#2a78d6" stroke-width="2" marker-end="url(#mkB)"/>
+    <rect x="378" y="486" width="250" height="52" rx="8" fill="#eaf2fc" stroke="#2a78d6" stroke-width="1.5"/>
+    <text x="503" y="508" font-size="12.5" fill="#0b0b0b" text-anchor="middle">mink QP @ 50 Hz — LOCAL solver</text>
+    <text x="503" y="526" font-size="11.5" fill="#52514e" text-anchor="middle">5 cm self-collision pairs · per tick</text>
+    <line x1="628" y1="512" x2="652" y2="512" stroke="#2a78d6" stroke-width="2" marker-end="url(#mkB)"/>
+    <rect x="654" y="486" width="150" height="52" rx="8" fill="#eaf2fc" stroke="#2a78d6" stroke-width="1.5"/>
+    <text x="729" y="516" font-size="12.5" fill="#0b0b0b" text-anchor="middle">joint targets</text>
+    <text x="176" y="560" font-size="11.5" fill="#52514e">local ⇒ cross-basin moves need hand-authored STAIRCASES · still runs unchanged — the independent fallback path</text>
+
+    <!-- Row: NOW -->
+    <rect x="86" y="596" width="72" height="24" rx="12" fill="#4a3aa7"/>
+    <text x="122" y="612.5" font-size="12" font-weight="bold" fill="#ffffff" text-anchor="middle">NOW</text>
+    <rect x="176" y="590" width="176" height="52" rx="8" fill="#edeafa" stroke="#4a3aa7" stroke-width="1.5"/>
+    <text x="264" y="612" font-size="12.5" fill="#0b0b0b" text-anchor="middle">world cuboids</text>
+    <text x="264" y="630" font-size="12.5" fill="#0b0b0b" text-anchor="middle">+ grasp goalset</text>
+    <line x1="352" y1="616" x2="376" y2="616" stroke="#4a3aa7" stroke-width="2" marker-end="url(#mkV)"/>
+    <rect x="378" y="590" width="250" height="52" rx="8" fill="#edeafa" stroke="#4a3aa7" stroke-width="1.5"/>
+    <text x="503" y="612" font-size="12.5" fill="#0b0b0b" text-anchor="middle">cuRobo trajectory — GLOBAL, GPU</text>
+    <text x="503" y="630" font-size="11.5" fill="#52514e" text-anchor="middle">planned ONCE · collision-aware</text>
+    <line x1="628" y1="616" x2="652" y2="616" stroke="#4a3aa7" stroke-width="2" marker-end="url(#mkV)"/>
+    <rect x="654" y="590" width="150" height="52" rx="8" fill="#edeafa" stroke="#4a3aa7" stroke-width="1.5"/>
+    <text x="729" y="612" font-size="12.5" fill="#0b0b0b" text-anchor="middle">20 Hz joint stream</text>
+    <text x="729" y="630" font-size="11.5" fill="#52514e" text-anchor="middle">mink bypassed</text>
+    <text x="176" y="664" font-size="11.5" fill="#52514e">safety certificate = the pre-verified route + bounded drift — no per-tick solver in the loop</text>
+
+    <!-- Row: NEXT -->
+    <rect x="86" y="700" width="72" height="24" rx="12" fill="#8a8984"/>
+    <text x="122" y="716.5" font-size="12" font-weight="bold" fill="#ffffff" text-anchor="middle">NEXT</text>
+    <rect x="176" y="694" width="176" height="52" rx="8" fill="#ffffff" stroke="#8a8984" stroke-width="1.5" stroke-dasharray="6 4"/>
+    <text x="264" y="724" font-size="12.5" fill="#52514e" text-anchor="middle">route waypoints</text>
+    <line x1="352" y1="720" x2="376" y2="720" stroke="#8a8984" stroke-width="2" stroke-dasharray="6 4" marker-end="url(#mkG)"/>
+    <rect x="378" y="694" width="250" height="52" rx="8" fill="#ffffff" stroke="#8a8984" stroke-width="1.5" stroke-dasharray="6 4"/>
+    <text x="503" y="716" font-size="12.5" fill="#52514e" text-anchor="middle">per-tick drift tracker</text>
+    <text x="503" y="734" font-size="11.5" fill="#52514e" text-anchor="middle">(Jacobian / mink)</text>
+    <line x1="628" y1="720" x2="652" y2="720" stroke="#8a8984" stroke-width="2" stroke-dasharray="6 4" marker-end="url(#mkG)"/>
+    <rect x="654" y="694" width="150" height="52" rx="8" fill="#ffffff" stroke="#8a8984" stroke-width="1.5" stroke-dasharray="6 4"/>
+    <text x="729" y="716" font-size="12.5" fill="#52514e" text-anchor="middle">re-anchored to</text>
+    <text x="729" y="734" font-size="11.5" fill="#52514e" text-anchor="middle">live cube pose</text>
+    <text x="176" y="768" font-size="11.5" fill="#52514e">not yet deployed — the sim architecture's reactive layer (tracks a moving cube without re-planning)</text>
+  </g>
+
+  <!-- ═══ Panel R: Safety contract ═══ -->
+  <g>
+    <rect x="984" y="430" width="556" height="400" rx="10" fill="#fcfcfb" stroke="#c9c8c2" stroke-width="1.5"/>
+    <text x="1010" y="466" font-size="18" font-weight="bold" fill="#0b0b0b">Safety Contract — Inherited, Not Reinvented</text>
+
+    <circle cx="1016" cy="500" r="5" fill="#4a3aa7"/>
+    <text x="1032" y="505" font-size="12.5" fill="#0b0b0b">The FULL route is on the robot before motion starts —</text>
+    <text x="1032" y="523" font-size="12.5" fill="#0b0b0b">mid-motion link loss is harmless.</text>
+
+    <circle cx="1016" cy="556" r="5" fill="#e34948"/>
+    <text x="1032" y="561" font-size="12.5" fill="#0b0b0b">Every abort = stop publishing → 0.5 s arm-silence failsafe</text>
+    <text x="1032" y="579" font-size="12.5" fill="#0b0b0b">crawls the arms home. No half-executed state exists.</text>
+
+    <circle cx="1016" cy="612" r="5" fill="#eda100"/>
+    <text x="1032" y="617" font-size="12.5" fill="#0b0b0b">Only OUR deploy model authorizes motion — the planner's</text>
+    <text x="1032" y="635" font-size="12.5" fill="#0b0b0b">own "collision-free" verdict is never trusted alone.</text>
+
+    <circle cx="1016" cy="668" r="5" fill="#2a78d6"/>
+    <text x="1032" y="673" font-size="12.5" fill="#0b0b0b">Grasp verdicts are id-matched and FAIL CLOSED; the</text>
+    <text x="1032" y="691" font-size="12.5" fill="#0b0b0b">dropout watchdog and FF torque clamp run unchanged.</text>
+
+    <circle cx="1016" cy="724" r="5" fill="#8a8984"/>
+    <text x="1032" y="729" font-size="12.5" fill="#0b0b0b">The operator (staircases + gates) stays intact — selected</text>
+    <text x="1032" y="747" font-size="12.5" fill="#0b0b0b">by running it, never by silent degradation.</text>
+
+    <text x="1010" y="800" font-size="11" font-style="italic" fill="#8a8984">Hardware-validated standing grasp (2026-07-28) is the baseline this pipeline must match before extending it.</text>
+  </g>
+
+  <!-- Footer -->
+  <text x="60" y="868" font-size="11" fill="#8a8984">humanoid_curobo_reach.py · humanoid_curobo_client.py · curobo_plan_server.py — Duke Humanoid V2, July 2026</text>
+</svg>
