@@ -1,11 +1,39 @@
+<div align="center">
+
 # Duke Humanoid V2: control stack
+
+**Everything that runs on the robot: the 50 Hz policy loop, the perception
+bridge, the cuRobo planning client, the gripper service and the autonomous
+operator.**
+
+**Paper** (preprint coming) &middot;
+**[Project entry point](https://github.com/generalroboticslab/duke_humanoid_v2)** &middot;
+**[Simulation &amp; training](https://github.com/generalroboticslab/duke_humanoid_v2_simulation)** &middot;
+**[Operations runbook](control/docs/OPERATIONS.md)**
+
+[![License](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](LICENSE)
+![Python](https://img.shields.io/badge/python-3.12-blue.svg)
+![Tests](https://img.shields.io/badge/tests-635%20passing-brightgreen.svg)
+
+</div>
+
+![Tracking two moving targets on hardware](media/hardware_tracking.webp)
+
+<div align="center"><i>This stack, running. Two moving targets carried by two
+people on opposite sides; each camera module tracks one target and the arm on
+that side follows it, both at once.</i></div>
+
+> **Safety.** This code moves a 36 kg machine with people beside it. Every
+> control constant, wire-protocol field, timing budget and safety gate here has
+> a hardware run behind it, and most carry the incident that produced them in a
+> comment. [`control/docs/auto_operator_incidents.md`](control/docs/auto_operator_incidents.md)
+> lists the failures these mechanisms exist to prevent, each with the
+> "simplification" that would bring it back. Read
+> [`control/docs/OPERATIONS.md`](control/docs/OPERATIONS.md) before running anything.
 
 The onboard control software for the Duke Humanoid V2: a 31-DoF, 36 kg bipedal
 humanoid with two 7-DoF arms, parallel grippers and two independently actuated
-yaw-pitch RGB-D camera gimbals. This repository holds everything that runs **on
-the robot**: the 50 Hz policy loop, the perception bridge, the cuRobo planning
-client, the gripper service and the autonomous operator that drives a standing
-dual-arm cube grasp.
+yaw-pitch RGB-D camera gimbals.
 
 The robot was built so its two cameras could aim at separated work regions
 independently, which is what keeps a two-target task from becoming a sequence of
@@ -22,13 +50,43 @@ this one deploys the exported result. Both are submodules of
 [**duke_humanoid_v2**](https://github.com/generalroboticslab/duke_humanoid_v2),
 the project entry point, which has the hardware specifications and the results.
 
-> **Safety.** This code moves a 36 kg machine with people beside it. Every
-> control constant, wire-protocol field, timing budget and safety gate here has
-> a hardware run behind it, and most carry the incident that produced them in a
-> comment. [`control/docs/auto_operator_incidents.md`](control/docs/auto_operator_incidents.md)
-> lists the failures these mechanisms exist to prevent, each with the
-> "simplification" that would bring it back. Read
-> [`control/docs/OPERATIONS.md`](control/docs/OPERATIONS.md) before running anything.
+## Contents
+
+- [What this stack does on hardware](#what-this-stack-does-on-hardware)
+- [What is in here](#what-is-in-here)
+- [System diagram](#system-diagram)
+- [Hardware this targets](#hardware-this-targets)
+- [Install](#install)
+- [Running it](#running-it)
+- [Tests](#tests)
+- [Repository layout](#repository-layout)
+- [Provenance and licence](#provenance-and-licence)
+
+## What this stack does on hardware
+
+Four trials play together in each clip. The autonomous operator
+(`control/humanoid_auto_operator.py`) drives all of them; nothing below is
+teleoperated.
+
+<table>
+<tr>
+<td width="50%"><img src="media/hardware_close_left_right.webp" width="100%" alt="Left/right close, four hardware trials"></td>
+<td width="50%"><img src="media/hardware_close_front_back.webp" width="100%" alt="Front/back close, four hardware trials"></td>
+</tr>
+<tr>
+<td><b>Left and right, within reach.</b> Both cameras hold their own target while
+both arms work, which is the case the gaze stream exists for.</td>
+<td><b>Front and behind.</b> The separation a single forward-facing view cannot
+cover.</td>
+</tr>
+</table>
+
+![Left/right far, walking, four hardware trials](media/hardware_far_walk.webp)
+
+**Out of reach, so it walks.** SEARCH to GO to REACH to PARK per visit, with the
+base driving until the cube is arm-reachable. This is the path through
+`humanoid_curobo_reach.py` that the retreat verdicts and MPC session management
+exist to make survivable.
 
 ## What is in here
 
@@ -71,6 +129,11 @@ operator or the reach tool and `humanoid_real_env --ee-service` relays it over
 `ipc:///tmp/ee_status.sock`.
 
 ## Hardware this targets
+
+![Duke Humanoid V2 hardware](media/hardware.png)
+
+Orange numbers are actuated joints, green labels are modules: (I) camera,
+(II) gripper, (III) onboard computer. Dimensions in mm.
 
 - Duke Humanoid V2: 27 body joints + 4 camera-gimbal joints = 31 actuated.
 - Six CAN buses (`can9`, `can21`-`can25`) driving the body motors.
@@ -258,3 +321,17 @@ pinned by URL and commit, or, for the two vendor SDKs under
 Licence: **Apache-2.0**, see [`LICENSE`](LICENSE), matching the simulation
 repository. Third-party components keep their own licences (see
 `PROVENANCE.md`).
+
+## Citation
+
+The preprint is not posted yet. When it is, this block and the link row at the
+top will carry the reference.
+
+```bibtex
+@misc{duke_humanoid_v2,
+  title  = {Visible-Reachable Workspace for Perception-Aware Humanoid Design},
+  author = {General Robotics Lab, Duke University},
+  year   = {2026},
+  url    = {https://github.com/generalroboticslab/duke_humanoid_v2}
+}
+```
