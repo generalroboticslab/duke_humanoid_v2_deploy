@@ -1,13 +1,17 @@
 # Duke Humanoid V2 — control stack
 
-The onboard control software for the Duke Humanoid V2: a 36 kg bipedal humanoid
-with two 7-DOF arms, parallel grippers and an actuated head-camera gimbal. This
-repository holds everything that runs **on the robot** — the 50 Hz policy loop,
-the perception bridge, the cuRobo planning client, the gripper service and the
-autonomous operator that drives a standing dual-arm cube grasp.
+The onboard control software for the Duke Humanoid V2: a 31-DoF, 36 kg bipedal
+humanoid with two 7-DoF arms, parallel grippers and two independently actuated
+yaw-pitch RGB-D camera gimbals. This repository holds everything that runs **on
+the robot** — the 50 Hz policy loop, the perception bridge, the cuRobo planning
+client, the gripper service and the autonomous operator that drives a standing
+dual-arm cube grasp.
 
-Policy *training* lives in a separate repository; this one deploys the exported
-result.
+Policy *training* lives in
+[`duke_humanoid_v2_simulation`](https://github.com/generalroboticslab/duke_humanoid_v2_simulation);
+this one deploys the exported result. Both are submodules of
+[**duke_humanoid_v2**](https://github.com/generalroboticslab/duke_humanoid_v2),
+the project entry point, which has the hardware specifications and results.
 
 > **Safety.** This code moves a 36 kg machine with people beside it. Every
 > control constant, wire-protocol field, timing budget and safety gate here has
@@ -242,5 +246,6 @@ This is a fresh-history public release of an internal research repository. See
 pinned by URL and commit, or, for the two vendor SDKs under
 `control/hardware_bindings/`, redistributed with a `NOTICE.md` beside them.
 
-Licence: **MIT** — see [`LICENSE`](LICENSE). Third-party components keep their
-own licences (see `PROVENANCE.md`).
+Licence: **Apache-2.0** — see [`LICENSE`](LICENSE), matching the simulation
+repository. Third-party components keep their own licences (see
+`PROVENANCE.md`).

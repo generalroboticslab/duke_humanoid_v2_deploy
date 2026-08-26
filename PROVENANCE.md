@@ -80,7 +80,8 @@ files, 63.9 MB; every file's md5 is in its `MANIFEST.md5`. Source:
 upstream commit `6a486fb` (2026-08-11) as checked out on the robot on
 2026-08-24. The Python is the training repository's code (author: the
 upstream maintainer); it is redistributed here with the project owners'
-agreement under this repository's MIT licence, unmodified. Not bundled: the
+agreement under this repository's Apache-2.0 licence, unmodified — the same
+licence the training repository itself carries. Not bundled: the
 cuRobo planner package and the assets `rebuild_deploy_model.py` needs (see the
 bundle README).
 
@@ -138,9 +139,11 @@ carries the licence text for binary distributions of the extension.
 
 ## Licence
 
-**MIT**, copyright holder General Robotics Lab - Duke University — see
-`LICENSE`. MIT was chosen to match the lab's previous release
-(DukeHumanoidv1). Third-party components keep their own licences: the FEETECH
+**Apache-2.0**, copyright holder General Robotics Lab, Duke University — see
+`LICENSE`. Chosen to match `duke_humanoid_v2_simulation`, so the two halves of
+the project ship under one licence and the training-repository code
+redistributed in the deploy bundle above rides on its own terms rather than a
+second set. Third-party components keep their own licences: the FEETECH
 SDK sources redistributed under `control/hardware_bindings/ft_servo/` stay
 under their MIT licence with attribution (`NOTICE.md` there), the SYD Dynamics
 EasyProfile sources under `control/hardware_bindings/imu/EasyProfile/` stay
@@ -173,7 +176,8 @@ pinned components in the table above stay under theirs.
 - 2026-08-22: personal-name attributions in comments and docs were replaced
   by role words ("upstream" for the training/simulation side; the dated patch
   markers keep their dates). The pinned third-party repository URLs are
-  unchanged. The `LICENSE` file (MIT) was added.
+  unchanged. The `LICENSE` file was added (MIT at the time; relicensed to
+  Apache-2.0 on 2026-08-25 to match the simulation repository).
 
 ### Release polish (2026-08-22, runtime pass)
 
