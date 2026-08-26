@@ -1,17 +1,26 @@
-# Duke Humanoid V2 — control stack
+# Duke Humanoid V2: control stack
 
 The onboard control software for the Duke Humanoid V2: a 31-DoF, 36 kg bipedal
 humanoid with two 7-DoF arms, parallel grippers and two independently actuated
 yaw-pitch RGB-D camera gimbals. This repository holds everything that runs **on
-the robot** — the 50 Hz policy loop, the perception bridge, the cuRobo planning
+the robot**: the 50 Hz policy loop, the perception bridge, the cuRobo planning
 client, the gripper service and the autonomous operator that drives a standing
 dual-arm cube grasp.
+
+The robot was built so its two cameras could aim at separated work regions
+independently, which is what keeps a two-target task from becoming a sequence of
+torso rotations. That only pays off if the stack can hold two views while both
+arms work, so the cameras are not a look-at controller bolted on the side. Gaze
+targets arrive on the same 9874 stream as arm targets, and the policy treats
+them the same way it treats the arms: one tick, `default pose + arm baseline +
+gaze reference + policy residual`. Gaze does keep its own silence timer, because
+a gaze-only keepalive must not be read as the arms still being commanded.
 
 Policy *training* lives in
 [`duke_humanoid_v2_simulation`](https://github.com/generalroboticslab/duke_humanoid_v2_simulation);
 this one deploys the exported result. Both are submodules of
 [**duke_humanoid_v2**](https://github.com/generalroboticslab/duke_humanoid_v2),
-the project entry point, which has the hardware specifications and results.
+the project entry point, which has the hardware specifications and the results.
 
 > **Safety.** This code moves a 36 kg machine with people beside it. Every
 > control constant, wire-protocol field, timing budget and safety gate here has
@@ -34,9 +43,9 @@ the project entry point, which has the hardware specifications and results.
 | Grippers | `control/humanoid_end_effector_service.py` | ST/FT serial servo hands |
 | Motor bindings | `control/hardware_bindings/` | C++/nanobind CAN layer, 244 Hz |
 
-A fuller map — module responsibilities, the process/port diagram, the timing
-budget and which tests cover what — is in
-[`control/docs/ARCHITECTURE_MAP.md`](control/docs/ARCHITECTURE_MAP.md).
+[`control/docs/ARCHITECTURE_MAP.md`](control/docs/ARCHITECTURE_MAP.md) has the
+fuller map: module responsibilities, the process/port diagram, the timing budget
+and which tests cover what.
 
 ## System diagram
 
@@ -64,9 +73,9 @@ operator or the reach tool and `humanoid_real_env --ee-service` relays it over
 ## Hardware this targets
 
 - Duke Humanoid V2: 27 body joints + 4 camera-gimbal joints = 31 actuated.
-- Six CAN buses (`can9`, `can21`–`can25`) driving the body motors.
-- Two Intel RealSense D436 RGB-D cameras side by side on the head gimbal — left on stream
-  port 5555, right on 5556 — streamed as JPEG over TCP. There is no chest camera.
+- Six CAN buses (`can9`, `can21`-`can25`) driving the body motors.
+- Two Intel RealSense D436 RGB-D cameras side by side on the head gimbal, left on stream
+  port 5555, right on 5556, streamed as JPEG over TCP. There is no chest camera.
 - FEETECH serial-bus servo grippers, one per arm.
 - SYD Dynamics TransducerM TM171 IMU (serial, EasyProfile protocol); no foot
   force sensors.
@@ -76,7 +85,7 @@ is expected to run on a different machine.
 
 ## Install
 
-Requires **Python 3.12** — the codebase uses PEP 701 f-strings and will not
+Requires **Python 3.12**. The codebase uses PEP 701 f-strings and will not
 parse on 3.11 or earlier. Target platform: Linux x86_64, glibc >= 2.28 (the
 pinned wheels are `manylinux_2_28`).
 
@@ -90,21 +99,21 @@ Install `torch` first, from the index that matches your hardware. A plain
 `pip install torch==2.9.1` on Linux resolves to the CUDA build and pulls
 ~3 GB of `nvidia-*` wheels onto a robot computer that has no NVIDIA GPU; the
 CPU wheel above runs everything in this repository (the robot itself uses the
-`+rocm6.3` build — see the comment block in `requirements.txt`).
+`+rocm6.3` build, see the comment block in `requirements.txt`).
 
 `requirements.txt` pins the versions the robot actually runs. Two dependencies
 are deliberately absent because they are checkouts, not PyPI packages:
 
 | Dependency | What it supplies | Availability |
 |---|---|---|
-| `legged_env_v2` (`mj_envs`) | the deploy run directories (policy weights, `env_config.yaml`, the calibrated `robot.xml` **and its meshes**) and the CPU-side Python the robot loop imports: `mj_envs.utils.ik_mink` (IK for `--use-ik` and the arm stream; needs `qpsolvers` + `daqp`, pinned in `requirements.txt` for that reason), `mj_envs.utils.torch_math_utils`, `tasks.visual_manipulation.moving_policy.ReachabilityGate` (operator `--use-gate`) — **all bundled in `control/legged_env_bundle/`, so the robot side needs no checkout**. The plan server's cuRobo planner and scene (`mj_envs.tasks.visual_manipulation.curobo`) are not bundled | the upstream training/deploy repository (General Robotics Lab; clone name `legged_env_dev`). **Not public at the time of this release**; needed only for the plan server (GPU machine) and `rebuild_deploy_model.py`. |
+| `legged_env_v2` (`mj_envs`) | the deploy run directories (policy weights, `env_config.yaml`, the calibrated `robot.xml` **and its meshes**) and the CPU-side Python the robot loop imports: `mj_envs.utils.ik_mink` (IK for `--use-ik` and the arm stream; needs `qpsolvers` + `daqp`, pinned in `requirements.txt` for that reason), `mj_envs.utils.torch_math_utils`, `tasks.visual_manipulation.moving_policy.ReachabilityGate` (operator `--use-gate`), **all bundled in `control/legged_env_bundle/`, so the robot side needs no checkout**. The plan server's cuRobo planner and scene (`mj_envs.tasks.visual_manipulation.curobo`) are not bundled | the upstream training/deploy repository (General Robotics Lab; clone name `legged_env_dev`). **Not public at the time of this release**; needed only for the plan server (GPU machine) and `rebuild_deploy_model.py`. |
 | [cuRobo](https://github.com/NVlabs/curobo) | the plan/MPC solver behind `control/curobo_plan_server.py` | NVIDIA licence; GPU machine only; pin `8e734f3` (`v0.8.0-42`) |
 
-**What runs without a `legged_env_v2` checkout:** everything on the robot —
+**What runs without a `legged_env_v2` checkout:** everything on the robot:
 `humanoid_site.LEGGED_ENV_ROOT` falls back to `control/legged_env_bundle/`, an
 upstream-shaped subset (two run directories, 55 mesh/texture files, the two
 CPU-side Python packages, the Vicon calibration; `MANIFEST.md5` lists every
-file) — plus, as before, the operator decision core
+file), plus, as before, the operator decision core
 (`humanoid_auto_operator.py` + `auto_operator/`), the perception bundle
 (`perception/`: streaming server, standalone tag detector, tagged-body
 registry), the gripper service, and every test that does not load the MJCF.
@@ -121,11 +130,11 @@ FileNotFoundError: deploy model not found at …/legged_env_v2/mj_envs/deploy/ru
 from `humanoid_real_env.py` and everything else that goes through
 `humanoid_base`, or MuJoCo's `ValueError: ParseXML: Error opening file
 '…/robot.xml'` from the tools that load the MJCF directly (the monitor, the
-reach tool, the probe — the first two only once they build their scene, so
+reach tool, the probe, the first two only once they build their scene, so
 their `--help` still prints). The plan server fails at import with an
 `ImportError` naming the same remedies. Set `HUMANOID_LEGGED_ENV_ROOT` in the
 environment, or `LEGGED_ENV_ROOT` in `control/site_local.py`, to the checkout
-that holds `mj_envs/deploy/runs/<task>/` — only needed for the plan server and
+that holds `mj_envs/deploy/runs/<task>/`, only needed for the plan server and
 the model-rebuild tool. Without either setting, `control/legged_env_bundle/`
 is used: byte-exact copies of the two run directories the robot resolves (the
 released checkpoint and the calibrated robot model) together with the meshes
@@ -142,15 +151,15 @@ The perception modules ship in this repository at `perception/`, so nothing
 needs configuring to find them. `control/humanoid_site.py` picks that bundled
 directory up automatically.
 
-`control/humanoid_site.py` resolves every installation-specific value — repo
+`control/humanoid_site.py` resolves every installation-specific value, repo
 paths, the plan-server address, the robot and workstation addresses, the
-ports, camera serials, the gripper boards' USB serials — from a `HUMANOID_*`
+ports, camera serials, the gripper boards' USB serials, from a `HUMANOID_*`
 environment variable, then `site_local.py`, then a portable default, so the
 stack runs from any directory, on any machine, as any user. **No path, host or
 serial number is hard-coded on that run path.** One default still carries a
 rig's identity: `HAND_USB_SERIAL_LEFT` / `HAND_USB_SERIAL_RIGHT` (the gripper
 driver boards, the fallback the gripper service uses when the udev symlinks are
-absent) default to one rig's boards — set your own in `site_local.py` or
+absent) default to one rig's boards, set your own in `site_local.py` or
 `HUMANOID_HAND_USB_SERIAL_*` (`control/docs/SETUP.md`, section 4). The known
 exceptions sit beside the run path: the `/dev/ttyACM*` defaults of two bench
 one-offs (`control/disable_servo.py`, `control/torque_sensor_test.py`), and the
@@ -163,9 +172,9 @@ ports, see [`control/docs/SETUP.md`](control/docs/SETUP.md).
 
 ## Running it
 
-The terminal-by-terminal bring-up ladder — and the reason each step is ordered
-where it is — is [`control/docs/OPERATIONS.md`](control/docs/OPERATIONS.md).
-The short version, once built and configured:
+[`control/docs/OPERATIONS.md`](control/docs/OPERATIONS.md) has the
+terminal-by-terminal bring-up ladder and the reason each step is ordered where
+it is. The short version, once built and configured:
 
 ```
 T0  python humanoid_setup_can.py                # after ANY power cycle
@@ -242,10 +251,10 @@ patches/                   local changes to pinned third-party components
 ## Provenance and licence
 
 This is a fresh-history public release of an internal research repository. See
-`PROVENANCE.md` for the source commits and for the third-party components —
+`PROVENANCE.md` for the source commits and for the third-party components,
 pinned by URL and commit, or, for the two vendor SDKs under
 `control/hardware_bindings/`, redistributed with a `NOTICE.md` beside them.
 
-Licence: **Apache-2.0** — see [`LICENSE`](LICENSE), matching the simulation
+Licence: **Apache-2.0**, see [`LICENSE`](LICENSE), matching the simulation
 repository. Third-party components keep their own licences (see
 `PROVENANCE.md`).
