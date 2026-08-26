@@ -46,7 +46,7 @@ the gripper service.
                                           |        |  nng :9874 arm + ee_action  |
                                           |        v                             |
                                           |   hardware_bindings (C++/nanobind)   |
-                                          |     CanMotorController  244 Hz CAN   |
+                                          |     CanMotorController  200 Hz CAN   |
                                           |     can9, can21..can25               |
                                           +--------------------------------------+
    T0 humanoid_setup_can.py          once, after ANY power cycle
@@ -87,7 +87,7 @@ below as fixed unless you change every call site together.
 
 | Loop | Rate | Budget | Owner |
 |---|---|---|---|
-| CAN servo | 244 Hz per motor | — | C++ `hardware_bindings/motor` |
+| CAN servo | 200 Hz per motor | — | C++ `hardware_bindings/motor` |
 | Policy / control | 50 Hz (`control_freq` in the deploy `env_config.yaml`) | 20 ms per tick | `humanoid_real_env.py` |
 | Operator tick | 20 Hz (`OP_RATE_HZ`; `DT = 1.0 / OP_RATE_HZ`) | 50 ms | `AutoOperator.tick` |
 | Gate scoring | throttled, `GATE_EVAL_PERIOD_S = 0.1` per target | — | `_gate_eval` (INC-5) |

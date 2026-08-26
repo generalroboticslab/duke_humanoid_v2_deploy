@@ -75,7 +75,7 @@ cp control/site_local.example.py control/site_local.py   # and edit
 ## 2. Building the C++ extensions (`hardware_bindings`)
 
 `control/hardware_bindings/` holds three nanobind extensions — `motor_bindings`
-(CAN motor controller, the 244 Hz servo loop), `imu_nanobind` (TM3xx IMU over
+(CAN motor controller, the 200 Hz servo loop), `imu_nanobind` (TM3xx IMU over
 serial / EasyProfile) and `ft_servo_ext` (FEETECH SCServo/HLSCL gripper
 driver). They are built by the CMake project in `control/CMakeLists.txt`,
 which pulls in `control/hardware_bindings/CMakeLists.txt` with

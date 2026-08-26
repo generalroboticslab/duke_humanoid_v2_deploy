@@ -41,7 +41,7 @@ the project entry point, which has the hardware specifications and the results.
 | Perception | `control/humanoid_monitor.py` | AprilTag detection, multi-camera fusion, viser UI |
 | Camera / tag library | [`perception/`](perception/) | streaming, tag detection, the tagged-body registry |
 | Grippers | `control/humanoid_end_effector_service.py` | ST/FT serial servo hands |
-| Motor bindings | `control/hardware_bindings/` | C++/nanobind CAN layer, 244 Hz |
+| Motor bindings | `control/hardware_bindings/` | C++/nanobind CAN layer, 200 Hz |
 
 [`control/docs/ARCHITECTURE_MAP.md`](control/docs/ARCHITECTURE_MAP.md) has the
 fuller map: module responsibilities, the process/port diagram, the timing budget
@@ -61,7 +61,7 @@ and which tests cover what.
    gripper service <-ipc ee_request|      |  nng :9874 arm targets,    |
    (--ee-service)  --ipc ee_status>|      |    ee_action, gaze targets |
                                    |      v                            |
-                                   | hardware_bindings -> CAN 244 Hz   |
+                                   | hardware_bindings -> CAN 200 Hz   |
                                    +-----------------------------------+
 ```
 

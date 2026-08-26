@@ -697,7 +697,7 @@ public:
             this->error_code(id) = error_code;
             mode_status(id) = uint8_t((frame.can_id & 0xC00000) >> 22); // 0: reset, 1: calibration, 2: running
 
-            // Throttled to 1 line/s per motor: at 244 Hz per motor a persistent
+            // Throttled to 1 line/s per motor: at 200 Hz per motor a persistent
             // fault bit used to print ~1500 lines/s across an arm, and that
             // console flood measurably stalled the control loop (07-25 bench:
             // hand-back-driving the unpowered arm set transient OVER CURRENT
