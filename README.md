@@ -61,6 +61,7 @@ the project entry point, which has the hardware specifications and the results.
 - [Tests](#tests)
 - [Repository layout](#repository-layout)
 - [Provenance and licence](#provenance-and-licence)
+- [Citation](#citation)
 
 ## What this stack does on hardware
 
