@@ -153,13 +153,21 @@ parse on 3.11 or earlier. Target platform: Linux x86_64, glibc >= 2.28 (the
 pinned wheels are `manylinux_2_28`).
 
 ```bash
-python3.12 -m venv .venv && . .venv/bin/activate
-pip install torch==2.9.1 --index-url https://download.pytorch.org/whl/cpu
-pip install -r requirements.txt
+# A Python 3.12 environment, from nothing. Single static binary, no root.
+"${SHELL}" <(curl -L micro.mamba.pm/install.sh)
+micromamba create -n deploy python=3.12 -y && micromamba activate deploy
+micromamba install -c conda-forge uv -y
+
+uv pip install torch==2.9.1 --index-url https://download.pytorch.org/whl/cpu
+uv pip install -r requirements.txt
 ```
 
+If the machine already has a 3.12, `python3.12 -m venv .venv && . .venv/bin/activate`
+replaces the first block; `uv pip` targets an activated `venv` and an activated
+`micromamba` environment alike. Plain `pip` installs the same pins, slower.
+
 Install `torch` first, from the index that matches your hardware. A plain
-`pip install torch==2.9.1` on Linux resolves to the CUDA build and pulls
+`torch==2.9.1` install on Linux resolves to the CUDA build and pulls
 ~3 GB of `nvidia-*` wheels onto a robot computer that has no NVIDIA GPU; the
 CPU wheel above runs everything in this repository (the robot itself uses the
 `+rocm6.3` build, see the comment block in `requirements.txt`).
