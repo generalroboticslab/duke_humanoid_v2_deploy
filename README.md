@@ -178,7 +178,7 @@ are deliberately absent because they are checkouts, not PyPI packages:
 
 | Dependency | What it supplies | Availability |
 |---|---|---|
-| `legged_env_v2` (`mj_envs`) | the deploy run directories (policy weights, `env_config.yaml`, the calibrated `robot.xml` **and its meshes**) and the CPU-side Python the robot loop imports: `mj_envs.utils.ik_mink` (IK for `--use-ik` and the arm stream; needs `qpsolvers` + `daqp`, pinned in `requirements.txt` for that reason), `mj_envs.utils.torch_math_utils`, `tasks.visual_manipulation.moving_policy.ReachabilityGate` (operator `--use-gate`), **all bundled in `control/legged_env_bundle/`, so the robot side needs no checkout**. The plan server's cuRobo planner and scene (`mj_envs.tasks.visual_manipulation.curobo`) are not bundled | the upstream training/deploy repository (General Robotics Lab; clone name `legged_env_dev`). **Not public at the time of this release**; needed only for the plan server (GPU machine) and `rebuild_deploy_model.py`. |
+| `legged_env_v2` (`mj_envs`) | the deploy run directories (policy weights, `env_config.yaml`, the calibrated `robot.xml` **and its meshes**) and the CPU-side Python the robot loop imports: `mj_envs.utils.ik_mink` (IK for `--use-ik` and the arm stream; needs `qpsolvers` + `daqp`, pinned in `requirements.txt` for that reason), `mj_envs.utils.torch_math_utils`, `tasks.visual_manipulation.moving_policy.ReachabilityGate` (operator `--use-gate`), **all bundled in `control/legged_env_bundle/`, so the robot side needs no checkout**. The plan server's cuRobo planner and scene (`mj_envs.tasks.visual_manipulation.curobo`) are not bundled | the upstream training/deploy repository. **Not public at the time of this release**; needed only for the plan server (GPU machine) and `rebuild_deploy_model.py`. |
 | [cuRobo](https://github.com/NVlabs/curobo) | the plan/MPC solver behind `control/curobo_plan_server.py` | NVIDIA licence; GPU machine only; pin `8e734f3` (`v0.8.0-42`) |
 
 **What runs without a `legged_env_v2` checkout:** everything on the robot:
@@ -339,7 +339,7 @@ top will carry the reference.
 ```bibtex
 @misc{duke_humanoid_v2,
   title  = {Visible-Reachable Workspace for Perception-Aware Humanoid Design},
-  author = {General Robotics Lab, Duke University},
+  author = {Boxi Xia and Zijiang Yang and Ryan Shin and Bokuan Li and Eric Lu and Jacob Lee and Jiaxun Liu and Boyuan Chen},
   year   = {2026},
   url    = {https://github.com/generalroboticslab/duke_humanoid_v2}
 }

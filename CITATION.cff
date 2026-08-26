@@ -1,0 +1,31 @@
+cff-version: 1.2.0
+message: If you use the onboard control stack, the autonomous operator, or any of the deploy-side components, please cite the work below.
+title: "Duke Humanoid V2: onboard control stack — the 50 Hz policy loop, the perception bridge, the cuRobo planning client, the gripper service, and the autonomous operator"
+type: software
+date-released: 2026-08-26
+authors:
+  - family-names: Xia
+    given-names: Boxi
+  - family-names: Yang
+    given-names: Zijiang
+  - family-names: Shin
+    given-names: Ryan
+  - family-names: Li
+    given-names: Bokuan
+  - family-names: Lu
+    given-names: Eric
+  - family-names: Lee
+    given-names: Jacob
+  - family-names: Liu
+    given-names: Jiaxun
+  - family-names: Chen
+    given-names: Boyuan
+keywords:
+  - humanoid robotics
+  - real-time control
+  - perception
+  - motion planning
+  - hardware
+license: Apache-2.0
+url: https://github.com/generalroboticslab/duke_humanoid_v2_deploy
+repository-code: https://github.com/generalroboticslab/duke_humanoid_v2_deploy
