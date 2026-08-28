@@ -81,9 +81,9 @@ class NavPausedIsObservableTests(unittest.TestCase):
         """FATAL, not SKIP. Every remaining leg would fail identically, and a
         skipped cube is never retried — so skipping walks the whole order into
         the ground one 150 s timeout at a time."""
-        src = R.run_leg.__code__.co_consts
+        src = R.run_visit.__code__.co_consts
         flat = " ".join(str(c) for c in src if isinstance(c, str))
-        self.assertIn("nav_paused", flat + str(R.run_leg.__code__.co_names))
+        self.assertIn("nav_paused", flat + str(R.run_visit.__code__.co_names))
         self.assertIn("NAV PAUSED", flat,
                       "the walk never tells the operator why it is not moving")
 
@@ -228,7 +228,7 @@ class _HoldRig:
 @unittest.skipIf(R is None, _SKIP)
 class ArmFaultReleaseTests(unittest.TestCase):
     """`arm_fault` is the dropout watchdog's terminal latch AND the entry
-    condition for six of run_leg's FATALs. So the very failure that routes into
+    condition for six of run_visit's FATALs. So the very failure that routes into
     refuse_holding re-read its own latch on tick one, returned, published
     nothing — and real_env's 0.5 s arm-silence failsafe then crawled the OTHER
     arm, healthy and by construction the one holding a cube, to the default pose
@@ -259,7 +259,7 @@ class ArmFaultReleaseTests(unittest.TestCase):
 
     def test_a_fault_on_the_OTHER_arm_keeps_holding_the_loaded_one(self):
         """THE regression. arm_fault is terminal and is the entry condition for
-        six of run_leg's FATALs, so the failure that routes here re-read its own
+        six of run_visit's FATALs, so the failure that routes here re-read its own
         latch and released the loaded peer to the 0.025 rad/s crawl."""
         for faults, held in (([True, False], ("right",)),
                              ([False, True], ("left",))):
@@ -449,8 +449,8 @@ class FreeHandTests(unittest.TestCase):
         DET_UNCLAIM_S so exactly those marginal fits land. A bad y sign then
         chose the serving arm and killed the leg before a step was taken: seen
         live, cube on the robot's LEFT, refused as right-side."""
-        self.assertIn("median", R.run_leg.__code__.co_names,
-                      "run_leg still decides the serving arm from the raw "
+        self.assertIn("median", R.run_visit.__code__.co_names,
+                      "run_visit still decides the serving arm from the raw "
                       "last sighting instead of the filtered window")
 
     def test_a_full_side_is_STEERED_ACROSS_not_refused_up_front(self):
@@ -459,9 +459,9 @@ class FreeHandTests(unittest.TestCase):
         hand's side is a geometry the BASE can fix. The 07-30 INFEASIBLE
         measurement that motivated the old up-front refusal was taken STANDING,
         arm alone, base fixed."""
-        consts = " ".join(str(c) for c in R.run_leg.__code__.co_consts)
+        consts = " ".join(str(c) for c in R.run_visit.__code__.co_consts)
         self.assertIn("ACROSS", consts,
-                      "run_leg no longer announces the cross-midline approach")
+                      "run_visit no longer announces the cross-midline approach")
         self.assertIn("after the approach", consts,
                       "the SKIP is no longer taken from the post-arrival fix")
 
@@ -477,11 +477,11 @@ class FreeHandTests(unittest.TestCase):
                       "cameras hunt it forever")
 
     def test_run_leg_computes_the_free_set_and_passes_it(self):
-        self.assertIn("_held", R.run_leg.__code__.co_names,
-                      "run_leg still decides the serving arm blind to _held")
-        consts = " ".join(str(c) for c in R.run_leg.__code__.co_consts)
+        self.assertIn("_held", R.run_visit.__code__.co_names,
+                      "run_visit still decides the serving arm blind to _held")
+        consts = " ".join(str(c) for c in R.run_visit.__code__.co_consts)
         self.assertIn("only_sides", consts,
-                      "run_leg does not restrict the planner to free hands")
+                      "run_visit does not restrict the planner to free hands")
 
 
 # ---------------------------------------------------------------------------
@@ -653,12 +653,12 @@ class StopOnSkipTests(unittest.TestCase):
     def _run(self, continue_on_skip: bool):
         from types import SimpleNamespace
         calls = {"legs": [], "refuse": []}
-        orig = (R.journey_survey, R.run_leg, R.refuse_holding)
+        orig = (R.journey_survey, R.run_visit, R.refuse_holding)
         R.journey_survey = lambda rig, now: True
         def _leg(ctx, key, i, n):
             calls["legs"].append(key)
             return R.SKIP, "no gated route"
-        R.run_leg = _leg
+        R.run_visit = _leg
         def _refuse(msg, code, *a, **kw):
             calls["refuse"].append((msg, code, kw))
             return code
@@ -671,7 +671,7 @@ class StopOnSkipTests(unittest.TestCase):
                             no_table_world=True))
             rc = R.journey_mission(ctx)
         finally:
-            R.journey_survey, R.run_leg, R.refuse_holding = orig
+            R.journey_survey, R.run_visit, R.refuse_holding = orig
         return rc, calls, rig
 
     def test_the_default_stops_at_the_first_failed_grasp(self):
@@ -693,14 +693,14 @@ class StopOnSkipTests(unittest.TestCase):
         a carried cube to the failsafe."""
         from types import SimpleNamespace
         calls = {"refuse": []}
-        orig = (R.journey_survey, R.run_leg, R.refuse_holding)
+        orig = (R.journey_survey, R.run_visit, R.refuse_holding)
         R.journey_survey = lambda rig, now: True
         def _leg(ctx, key, i, n):
             if key == "cube_a":
                 ctx.rig._held.add("left")
                 return R.DONE, "carried"
             return R.SKIP, "no gated route"
-        R.run_leg = _leg
+        R.run_visit = _leg
         def _refuse(msg, code, *a, **kw):
             calls["refuse"].append((msg, code, kw))
             return code
@@ -711,7 +711,7 @@ class StopOnSkipTests(unittest.TestCase):
                 args=R.Args(no_table_world=True))
             rc = R.journey_mission(ctx)
         finally:
-            R.journey_survey, R.run_leg, R.refuse_holding = orig
+            R.journey_survey, R.run_visit, R.refuse_holding = orig
         self.assertEqual(rc, 5)
         msg, code, kw = calls["refuse"][0]
         self.assertTrue(kw.get("holding"))
@@ -784,17 +784,17 @@ class OneShotTests(unittest.TestCase):
                                                  OP.JOURNEY_Z_LEDGER_FLOOR_MM))
         self.assertIsNotNone(R.journey_z_verdict(-0.070, 15.0),
                              "the floor-blind LOW pole stopped binding")
-        # the run_leg call site must actually pass the run's floor
+        # the run_visit call site must actually pass the run's floor
         import inspect
-        src = inspect.getsource(R.run_leg)
+        src = inspect.getsource(R.run_visit)
         self.assertIn("journey_z_verdict(float(pos[2]), a.clearance_floor_mm)",
                       src)
 
     def test_run_leg_fails_fast_on_a_bad_height(self):
         import inspect
-        src = inspect.getsource(R.run_leg)
+        src = inspect.getsource(R.run_visit)
         self.assertIn("journey_z_verdict(", src,
-                      "run_leg no longer checks the cube height before "
+                      "run_visit no longer checks the cube height before "
                       "burning solver rounds")
         self.assertLess(src.index("journey_z_verdict("),
                         src.index("JOURNEY_LEG_PLAN_ROUNDS + 1"),
@@ -812,7 +812,7 @@ class OneShotTests(unittest.TestCase):
 
     def test_journey_legs_plan_direct_to_the_grasp_point(self):
         import inspect
-        src = inspect.getsource(R.run_leg)
+        src = inspect.getsource(R.run_visit)
         self.assertIn("a.reach_hover_mm = 0.0", src,
                       "journey legs no longer force hover 0 — the 15 mm "
                       "hover is back to stealing the wrist corridor")

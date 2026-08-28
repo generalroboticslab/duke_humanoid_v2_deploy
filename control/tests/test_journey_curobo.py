@@ -205,7 +205,7 @@ class NoDeadlockTests(unittest.TestCase):
                      "JOURNEY_STILL_TIMEOUT_S", "JOURNEY_ACQUIRE_S"):
             self.assertGreater(getattr(R, name), 0.0)
             self.assertLess(getattr(R, name), 600.0, f"{name} is not a bound")
-        self.assertIn(name, R.run_leg.__code__.co_names)
+        self.assertIn(name, R.run_visit.__code__.co_names)
 
     def test_the_acquire_wait_is_shorter_than_the_standing_scan(self):
         """DET_WAIT_S is 120 s and correct for a one-shot tool that has nothing
@@ -224,7 +224,7 @@ class NoDeadlockTests(unittest.TestCase):
         JOURNEY_EMPTY_REGRASP_S was greater than zero — which a constant no line
         of code reads passes perfectly. An adversarial audit found exactly that:
         the constant's own comment promised "an empty pinch reopens and
-        re-grabs without limit", run_leg's docstring promised the same, and
+        re-grabs without limit", run_visit's docstring promised the same, and
         neither existed. A certified-empty pinch went straight to FATAL and the
         mission parked forever in refuse_holding with an EMPTY hand while the
         cube sat on the table still being seen.
@@ -232,7 +232,7 @@ class NoDeadlockTests(unittest.TestCase):
         A constant that nothing reads is a comment. This asserts it is wiring.
         """
         self.assertGreater(R.JOURNEY_EMPTY_REGRASP_S, 0.0)
-        self.assertIn("JOURNEY_EMPTY_REGRASP_S", R.run_leg.__code__.co_names,
+        self.assertIn("JOURNEY_EMPTY_REGRASP_S", R.run_visit.__code__.co_names,
                       "the empty-regrasp window is a dead constant again")
         self.assertIn("empty_retry_s",
                       R.execute_and_retract.__code__.co_varnames)
@@ -244,7 +244,7 @@ class NoDeadlockTests(unittest.TestCase):
         point before this), and the plan rounds JOIN the thread before their
         first RPC — the lockstep REQ socket must never have two users."""
         import inspect
-        src = inspect.getsource(R.run_leg)
+        src = inspect.getsource(R.run_visit)
         launch = src.index("ctx.warm_thread = threading.Thread")
         walk = src.index("tucked in")
         join = src.index("hand back the")
@@ -272,7 +272,7 @@ class NoDeadlockTests(unittest.TestCase):
         over that list, so every cube is attempted exactly once and the loop
         terminates whatever the world does."""
         src = R.journey_mission.__code__
-        self.assertIn("run_leg", src.co_names)
+        self.assertIn("run_visit", src.co_names)
         # a `while` over a mutable pending set is what this must never become
         self.assertIn("order", src.co_varnames)
 
@@ -327,7 +327,7 @@ class GateImportTests(unittest.TestCase):
         rig._base_vel, rig._base_ang = [0.0, 0.0, 0.0], [0.0, 0.0, 0.0]
         R.journey_base_still(rig, 0.0)
         self.assertIsNotNone(rig._journey_still_since)
-        rig._journey_still_since = None                 # what run_leg does while driving
+        rig._journey_still_since = None                 # what run_visit does while driving
         self.assertFalse(R.journey_base_still(rig, 1e6))
 
 
@@ -532,7 +532,7 @@ class EmptyPinchContractTests(unittest.TestCase):
     def test_the_window_bounds_the_re_grips_so_the_leg_can_RE_PLAN(self):
         """Class 2's shape. A hand that keeps closing on nothing is in the wrong
         PLACE; repeating the same route forever is the livelock, so the round
-        ends and run_leg plans again."""
+        ends and run_visit plans again."""
         (outcome, why, _, _), _ = self._run(window=0.0)
         self.assertEqual(outcome, R.SKIP)
         self.assertIn("re-planning", why)
@@ -838,7 +838,7 @@ class MissionHomeIsFixedTests(unittest.TestCase):
     def test_both_round_loops_pass_the_mission_home(self):
         """A caller that forgets it silently gets the old behaviour back."""
         import inspect
-        for fn in (R.run_leg, R.main):
+        for fn in (R.run_visit, R.main):
             with self.subTest(fn=fn.__name__):
                 self.assertIn("ctx.home_enc", inspect.getsource(fn))
 

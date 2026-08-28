@@ -173,9 +173,9 @@ class AlignLawTests(unittest.TestCase):
         yaw floor turned the face boundary into a growing slalom (measured
         leg 2, 08-08 night: wz -0.35 -> +0.35 -> -0.50)."""
         import inspect
-        src = inspect.getsource(R.run_leg)
+        src = inspect.getsource(R.run_visit)
         self.assertIn("JOURNEY_WZ_SLEW", src,
-                      "run_leg publishes the raw law wz — the bang-bang "
+                      "run_visit publishes the raw law wz — the bang-bang "
                       "slalom is back")
         self.assertGreater(OP.JOURNEY_WZ_SLEW, 0.0)
 

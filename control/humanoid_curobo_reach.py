@@ -1315,7 +1315,7 @@ class Args:
     from its constants and pinned to it by a differential test.
 
     A leg that fails is SKIPPED LOUDLY and the mission STOPS there (user
-    2026-08-08) — it may not retry one cube forever either. See run_leg for
+    2026-08-08) — it may not retry one cube forever either. See run_visit for
     the bound on every wait, and journey_continue_on_skip for the old
     walk-on salvage behaviour."""
     journey_continue_on_skip: bool = False
@@ -3896,7 +3896,7 @@ def refuse_holding(msg: str, code: int, pub, tel: TelemetryView,
     `held_sides` names WHICH hands carry a cube, and it changes what an arm
     fault means (08-07 audit). Without it this loop released on the first fault
     on EITHER arm — but arm_fault is the dropout watchdog's terminal latch and
-    the entry condition for six of run_leg's FATALs, so the very failure that
+    the entry condition for six of run_visit's FATALs, so the very failure that
     routes here re-read its own latch on tick one, published nothing, and handed
     the OTHER arm — healthy, and on a journey the one carrying leg 1's cube — to
     real_env's 0.5 s silence failsafe. With the sides known the rule is exact:
@@ -6295,7 +6295,7 @@ def _fatal_telemetry(telemetry) -> str | None:
     return None
 
 
-def run_leg(ctx: Ctx, key: str, leg_no: int, n_legs: int) -> tuple[str, str]:
+def run_visit(ctx: Ctx, key: str, visit_no: int, n_visits: int) -> tuple[str, str]:
     """Walk to one cube and cuRobo the grasp. Returns (DONE|SKIP|FATAL, reason).
 
     THE SHAPE IS THE POINT. Every wait below is bounded and every bounded wait
@@ -6361,7 +6361,7 @@ def run_leg(ctx: Ctx, key: str, leg_no: int, n_legs: int) -> tuple[str, str]:
     if steering_across:
         arm = free[0]
     leg_dir = journey_leg_dir(pos0)
-    print(f"\n[journey] LEG {leg_no}/{n_legs} → {key}, serving arm "
+    print(f"\n[journey] VISIT {visit_no}/{n_visits} → {key}, serving arm "
           f"{arm.upper()} (free: {'+'.join(free)}), "
           f"direction {'forward' if leg_dir > 0 else 'reverse'}"
           + ("  [steering it ACROSS the midline into the free hand]"
@@ -6852,9 +6852,9 @@ def journey_mission(ctx: Ctx) -> int:
     order = list(rig._survey_order)
     done, skipped = [], []
     for i, key in enumerate(order, 1):
-        outcome, why = run_leg(ctx, key, i, len(order))
+        outcome, why = run_visit(ctx, key, i, len(order))
         if outcome is FATAL:
-            print(f"[journey] LEG {i}/{len(order)} FATAL — {why}")
+            print(f"[journey] VISIT {i}/{len(order)} FATAL — {why}")
             return refuse_holding(why, 5, ctx.pub, ctx.tel, ctx.det, rig,
                                   ctx.args.max_rate, holding=bool(rig._held),
                                   held_sides=tuple(sorted(rig._held)))
@@ -6872,7 +6872,7 @@ def journey_mission(ctx: Ctx) -> int:
             # skipped and grasped are identical to everything downstream —
             # only a restart retries this cube.
             rig.cubes[key].reached = True
-            print(f"[journey] LEG {i}/{len(order)} SKIPPED — {key}: {why}")
+            print(f"[journey] VISIT {i}/{len(order)} SKIPPED — {key}: {why}")
             if not ctx.args.journey_continue_on_skip:
                 # STOP ON SKIP (user 2026-08-08, after watching leg 1 fail to
                 # plan and the robot walk away toward leg 2): a skipped leg
@@ -6899,7 +6899,7 @@ def journey_mission(ctx: Ctx) -> int:
                   f"(--journey-continue-on-skip; restart to retry this one)")
             continue
         done.append(key)
-        print(f"[journey] LEG {i}/{len(order)} DONE — {key}: {why}")
+        print(f"[journey] VISIT {i}/{len(order)} DONE — {key}: {why}")
     print(f"\n[journey] mission complete in {time.monotonic()-t0:.0f}s — "
           f"{len(done)}/{len(order)} carried")
     for key, why in skipped:
@@ -6942,7 +6942,7 @@ def main() -> int:
     pub = NNGPublisher("tcp://*:9874")
     route_pub = NNGPublisher(ROUTE_PREVIEW_URL)
     # 9873 ONLY on an executing journey. A dry-run journey (no --execute)
-    # skips the tuck/align/walk/stillness block entirely (run_leg gates it on
+    # skips the tuck/align/walk/stillness block entirely (run_visit gates it on
     # nav_pub) and goes straight to the standing plan phases — the nav state
     # machine is exercised only when it can actually move the robot.
     nav_pub = NNGPublisher("tcp://*:9873") \
@@ -7226,8 +7226,8 @@ def main() -> int:
         # detections, not the end of the mission. Bounded like a leg: the same
         # JOURNEY_LEG_PLAN_ROUNDS, because the failure mode it guards (planning
         # forever at a target that never works out) is the same.
-        # ⚠ SCOPE DIFFERS FROM run_leg, DELIBERATELY UNCHANGED (audit
-        # 2026-08-06, I5). run_leg rebuilds this INSIDE its round loop, so each
+        # ⚠ SCOPE DIFFERS FROM run_visit, DELIBERATELY UNCHANGED (audit
+        # 2026-08-06, I5). run_visit rebuilds this INSIDE its round loop, so each
         # round re-measures the table; here it lives outside, so round 3 plans
         # against a pose measured before round 1 — and a base-frame table pose
         # drifts with torso sway exactly as a cube does. Left as-is on purpose:
