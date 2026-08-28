@@ -266,35 +266,33 @@ The suite is offline: no robot, no cameras, no GPU.
 cd control && python -m unittest discover -s tests
 ```
 
-With the C++ extensions built (see [`control/docs/SETUP.md`](control/docs/SETUP.md))
-and `legged_env_v2` reachable, the whole suite is expected to pass. Measured on
-a clean checkout and a fresh venv built from `requirements.txt` plus a reachable
-`legged_env_v2`:
+With the C++ extensions built (see [`control/docs/SETUP.md`](control/docs/SETUP.md)),
+the whole suite passes. No `legged_env_v2` checkout is needed: the deploy model comes
+from the bundled `control/legged_env_bundle/`. Measured 2026-08-28 on a clean Ubuntu
+22.04 host, from a fresh clone and a fresh environment built from `requirements.txt`:
 
 ```
-Ran 635 tests — OK
+Ran 635 tests in 190s — OK (skipped=3)
 ```
+
+Reaching that needs `cmake >= 3.26`. Ubuntu 22.04 ships 3.22, which configures and
+then fails the extension build with `No target "nanobind-abi3"`;
+[`control/docs/SETUP.md`](control/docs/SETUP.md) section 2.1 explains why and lists
+the ways round it.
 
 The tests assert the contract the robot runs as of 2026-08-13: the table is a
 height sensor (z prior) rather than a collision body in the MPC world, and the
 reverse-leg drift compensation is cancelled.
 
-Two things show up on the way there and are not regressions:
+Before the extensions are built, 27 tests error and 144 skip. That is the expected
+fresh-clone state, not a regression: everything that reaches a compiled binding
+errors at import, either via `humanoid_end_effector_service` ->
+`hardware_bindings.ft_servo` or via `humanoid_real_env` -> `humanoid_base` ->
+`hardware_bindings.motor`. Each one names the missing `.so` and the command that
+builds it. `test_grasp_action_id` guards its import and skips instead. Build the
+extensions and all of them run.
 
-- **Fresh clone, extensions not yet built.** The modules that reach a compiled
-  binding error at import time rather than run: `test_ee_zeroing` and
-  `test_end_effector_service` (via `humanoid_end_effector_service` ->
-  `hardware_bindings.ft_servo`), and `test_gaze_failsafe`, `test_lw2_mirror`,
-  `test_obs_frame_fix` and `test_waist_pin` (via `humanoid_real_env` ->
-  `humanoid_base` -> `hardware_bindings.motor`). `test_ee_shutdown` spawns the
-  gripper service as a subprocess and fails for the same reason;
-  `test_grasp_action_id` guards its import and skips. Build the extensions and
-  all of them run.
-- **Skips** when cuRobo is absent or the deploy model is unreachable. Each skip
-  message says why.
-
-Without `legged_env_v2` reachable, many more tests skip; that is expected and
-each skip message says why.
+The 3 remaining skips are the cuRobo-dependent cases; each skip message says so.
 
 ## Repository layout
 

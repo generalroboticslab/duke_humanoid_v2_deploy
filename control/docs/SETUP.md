@@ -90,7 +90,14 @@ Debian/Ubuntu:
 sudo apt install build-essential cmake ninja-build pkg-config git curl zip unzip tar
 ```
 
-(`cmake >= 3.15` per the project file; the build was last done with 3.28.
+(`cmake >= 3.26`, and this one bites: the project file only asks for 3.15, but the
+stable-ABI build needs CMake's `Development.SABIModule` component, which arrives in
+3.26. Ubuntu 22.04 ships 3.22, so the stock `apt` cmake configures and then fails
+with `No target "nanobind-abi3"` — nanobind quietly drops stable ABI when
+`Python::SABIModule` is missing, and the copy step then references a target that was
+never created. `apt` has no newer cmake on 22.04; `micromamba install -c conda-forge
+"cmake>=3.28"`, `pipx install cmake` or Kitware's APT repository all work. Verified
+2026-08-28: 3.22.1 fails at generate, 3.28 builds all three extensions.
 `curl zip unzip tar` are vcpkg's own bootstrap prerequisites.)
 
 ### 2.2 vcpkg and the C++ dependencies

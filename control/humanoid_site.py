@@ -88,7 +88,7 @@ _BUNDLED_LEGGED_ENV = CONTROL_ROOT / "legged_env_bundle"
 
 LEGGED_ENV_ROOT: Path = _path(
     "LEGGED_ENV_ROOT",
-    REPO_ROOT / "legged_env_v2" if (REPO_ROOT / "legged_env_v2").is_dir() else _BUNDLED_LEGGED_ENV)
+    _BUNDLED_LEGGED_ENV if _BUNDLED_LEGGED_ENV.is_dir() else REPO_ROOT / "legged_env_v2")
 """The upstream training/deploy tree, or the bundled subset of it.
 
 Supplies the deploy run directories (policy weights, env_config, the calibrated
@@ -97,14 +97,24 @@ imports (`mj_envs.utils.ik_mink`, `tasks.visual_manipulation.moving_policy`).
 
 Two layouts, and the default picks whichever is present:
 
-* a full `legged_env_v2` checkout beside this repository (`REPO_ROOT/legged_env_v2`)
-  — required for the cuRobo plan server (its planner is upstream code with CUDA
-  dependencies) and for `rebuild_deploy_model.py`;
-* otherwise `control/legged_env_bundle/`: the same paths, holding exactly what the
-  on-robot stack reads (see its README and MANIFEST.md5). A release checkout
-  therefore runs the robot side with no upstream checkout at all.
+* `control/legged_env_bundle/`: the paths the on-robot stack reads, byte-exact and
+  checked by its MANIFEST.md5 (see its README). A release checkout therefore runs
+  the robot side with no upstream checkout at all;
+* otherwise a full `legged_env_v2` checkout beside this repository
+  (`REPO_ROOT/legged_env_v2`) — required for the cuRobo plan server (its planner is
+  upstream code with CUDA dependencies) and for `rebuild_deploy_model.py`, neither of
+  which the bundle carries.
 
-An explicit HUMANOID_LEGGED_ENV_ROOT or `site_local.py` entry overrides both.
+The bundle is checked first for the same reason VISUAL_SERVOING_ROOT checks its own:
+a release checkout must not silently bind to an unrelated sibling that happens to be
+named `legged_env_v2`. Measured 2026-08-28 on a clean host, where a stale sibling
+checkout without the shipped run directory was preferred over the bundle that had it,
+and 27 tests failed with `deploy model not found` while the correct model sat unused
+in `control/legged_env_bundle/`.
+
+The plan server needs the upstream tree either way and fails at import naming the
+remedy, so set HUMANOID_LEGGED_ENV_ROOT (or `site_local.py`) on the GPU machine; an
+explicit setting overrides both layouts.
 """
 
 _BUNDLED_PERCEPTION = CONTROL_ROOT.parent / "perception"
