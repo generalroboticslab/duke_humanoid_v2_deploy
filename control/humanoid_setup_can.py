@@ -38,6 +38,12 @@ def find_usb_path(serial):
     return None
 
 
+def error_line(r):
+    """Last line of a failed command's stderr, so no failure is silent about why."""
+    lines = r.stderr.decode(errors="replace").strip().splitlines()
+    return lines[-1] if lines else f"exit status {r.returncode}"
+
+
 def setup(can):
     """Setup CAN interface. Returns True on success."""
     subprocess.run(f"sudo ip link set {can} down", shell=True, capture_output=True)
@@ -54,11 +60,19 @@ def setup(can):
             shell=True, capture_output=True)
     
     if r.returncode != 0:
+        print(f"{RED}[{error_line(r)}]{RESET}", end=" ", flush=True)
         return False
-    
-    return subprocess.run(
-        f"sudo ifconfig {can} txqueuelen 50",
-        shell=True, capture_output=True).returncode == 0
+
+    # Queue length via ip, not ifconfig: iproute2 is already required by the
+    # commands above, while net-tools is absent from a default Ubuntu install,
+    # and a missing ifconfig must not condemn a bus that is already up.
+    q = subprocess.run(f"sudo ip link set {can} txqueuelen 50",
+                       shell=True, capture_output=True)
+    if q.returncode != 0:
+        # The bus is up; a queue length we could not set is a tuning problem,
+        # not a dead adapter, and no USB reset or replug would change it.
+        print(f"{RED}[txqueuelen not set: {error_line(q)}]{RESET}", end=" ", flush=True)
+    return True
 
 def teardown(can):
     """Bring CAN interface down. Returns True on success."""
