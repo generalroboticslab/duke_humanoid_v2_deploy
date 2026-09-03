@@ -15,7 +15,7 @@ replies.
 
 DEPLOYMENT (the GPU machine):
 
-    PYTHONPATH=<legged_env_v2>:$PYTHONPATH python control/curobo_plan_server.py --port 9880
+    HUMANOID_LEGGED_ENV_ROOT=<legged_env_v2> python control/curobo_plan_server.py --port 9880
 
 Requirements: cuRobo at commit 8e734f3 installed in that interpreter, and the
 training/deploy repository legged_env_v2 (upstream clone name legged_env_dev;
@@ -23,9 +23,12 @@ not public at the time of release) — the planner and the scene
 (`mj_envs.tasks.visual_manipulation.curobo`) are imported at module level,
 BEFORE argparse runs. The server puts `humanoid_site.LEGGED_ENV_ROOT`
 (HUMANOID_LEGGED_ENV_ROOT in the environment, then LEGGED_ENV_ROOT in
-control/site_local.py, then ~/repo/legged_env_v2) on sys.path itself, so the
-PYTHONPATH prefix above is one of three ways to point at the checkout, and a
-missing or mis-pointed checkout fails at import — `--help` included — with
+control/site_local.py, then ~/repo/legged_env_v2) on sys.path itself, at
+position 0 — so PYTHONPATH cannot be used for this: whatever LEGGED_ENV_ROOT
+resolves to is searched first, and on a release checkout that is the bundled
+subset, which carries no planner. Set the environment variable above, or
+LEGGED_ENV_ROOT in control/site_local.py. A missing or mis-pointed checkout
+fails at import — `--help` included — with
 those remedies named rather than a bare ModuleNotFoundError. (The original
 recipe also exported MUJOCO_GL=egl for a headless box.) Flags: --port (default 9880),
 --hand-z-floor / --no-hand-z-floor / --hand-floor-weight — see `main()`.
@@ -112,10 +115,10 @@ except ImportError as _e:
         f"training/deploy repository legged_env_v2 checked out and importable, "
         f"with cuRobo (commit 8e734f3) installed in this interpreter (the bundled "
         f"control/legged_env_bundle covers the robot side only, not the planner). Point the "
-        f"stack at the checkout one of three ways: set HUMANOID_LEGGED_ENV_ROOT "
-        f"in the environment, set LEGGED_ENV_ROOT in control/site_local.py, or "
-        f"put the checkout on PYTHONPATH (README 'Install'; docs/OPERATIONS.md "
-        f"section 1).") from _e
+        f"stack at the checkout one of two ways: set HUMANOID_LEGGED_ENV_ROOT "
+        f"in the environment, or set LEGGED_ENV_ROOT in control/site_local.py. "
+        f"PYTHONPATH does not work here — LEGGED_ENV_ROOT is inserted at sys.path[0] "
+        f"and wins (README 'Install'; docs/OPERATIONS.md section 1).") from _e
 
 ROBOT = "v2"
 

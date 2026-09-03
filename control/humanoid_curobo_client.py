@@ -271,7 +271,7 @@ def _classify(err: str) -> PlanServerError:
             "a checkout of this repository (docs/OPERATIONS.md section 1):\n"
             "    ssh <gpu-host> 'pkill -f \"plan_serve[r]\"'\n"
             "    ssh <gpu-host> 'cd <repo> && "
-            "PYTHONPATH=<legged_env_v2>:$PYTHONPATH setsid nohup "
+            "HUMANOID_LEGGED_ENV_ROOT=<legged_env_v2> setsid nohup "
             "python control/curobo_plan_server.py --port 9880 "
             "> plan_server.log 2>&1 </dev/null & exit 0'\n"
             "then wait ~40 s for 'listening' in plan_server.log. Keep those\n"

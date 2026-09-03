@@ -233,7 +233,8 @@ mature mode — see `docs/OPERATIONS.md` section 5) and `--decoupled-arms`
   only our own model may say "safe to execute".
 - `curobo_plan_server.py` (≈1000): runs on the GPU machine and imports
   `mj_envs.tasks.visual_manipulation.curobo` from `legged_env_v2`, found
-  through `humanoid_site.LEGGED_ENV_ROOT` or `PYTHONPATH` (a missing checkout
+  through `humanoid_site.LEGGED_ENV_ROOT`, which it inserts at `sys.path[0]`, so
+  `PYTHONPATH` cannot point it anywhere (a missing checkout
   fails at import — `--help` included — with an `ImportError` naming the
   remedies; the launch and restart lines are `docs/OPERATIONS.md` section 1),
   one warm session behind pynng Rep0 on 9880; plan-0 plus the MPC session;
@@ -420,7 +421,7 @@ the `docs/OPERATIONS.md` ladder.
 | `humanoid_end_effector_service.py` | owns both FEETECH grippers over the IPC request/status sockets, 200 Hz poll | T2 |
 | `humanoid_real_env.py` | the 50 Hz policy loop: observation, policy, watchdog, IK, telemetry (`--task` defaults to `humanoid_site.DEPLOY_TASK`) | T3 |
 | `humanoid_monitor.py` | AprilTag detection + fusion, viser UI on 8080, detection IPC | T4 |
-| `curobo_plan_server.py` | cuRobo plan-0 + MPC server on 9880 | T5, GPU machine; finds `legged_env_v2` through `humanoid_site.LEGGED_ENV_ROOT` or `PYTHONPATH` |
+| `curobo_plan_server.py` | cuRobo plan-0 + MPC server on 9880 | T5, GPU machine; finds `legged_env_v2` through `humanoid_site.LEGGED_ENV_ROOT` (inserted at `sys.path[0]`; `PYTHONPATH` cannot override it) |
 | `humanoid_plan_server_probe.py` | three PASS/FAIL MPC cases against the server, no robot | before T6, after any server change |
 | `humanoid_curobo_reach.py` | standing dual-arm reach-and-grasp: gates, stream, MPC, verdicts | T6 |
 | `humanoid_mission_recorder.py` | both camera streams to MP4, one file per camera per run (`--out`, default `humanoid_site.RECORDINGS_DIR`) | T7, optional |

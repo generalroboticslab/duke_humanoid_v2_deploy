@@ -6973,7 +6973,7 @@ def main() -> int:
                         f"section 1):\n"
                         f"    ssh <gpu-host> 'pkill -f \"plan_serve[r]\"'\n"
                         f"    ssh <gpu-host> 'cd <repo> && "
-                        f"PYTHONPATH=<legged_env_v2>:$PYTHONPATH setsid nohup "
+                        f"HUMANOID_LEGGED_ENV_ROOT=<legged_env_v2> setsid nohup "
                         f"python control/curobo_plan_server.py --port 9880 "
                         f"> plan_server.log 2>&1 < /dev/null & exit 0'\n"
                         f"(two SEPARATE ssh calls: a pkill pattern spelled "
