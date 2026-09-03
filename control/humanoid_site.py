@@ -44,8 +44,9 @@ Assumptions
 `legged_env_v2` and `visual_servoing` sit side by side under `REPO_ROOT` unless
 individually overridden. Mesh paths inside the deploy `robot.xml` are relative
 to that file's own directory, so the model loads from wherever the tree is --
-inside a full `legged_env_v2` checkout (robot.xml's meshdir is relative to that
-tree; the bundled `legged_env_bundle` copy alone does not load).
+a full `legged_env_v2` checkout, or `control/legged_env_bundle/`, which mirrors
+that layout so the same relative `meshdir` lands on the bundle's own
+`asset/create/meshes` (see its README).
 """
 from __future__ import annotations
 

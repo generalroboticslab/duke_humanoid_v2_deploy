@@ -104,6 +104,10 @@ control/logs_old2/
 nohup.out
 MUJOCO_LOG.TXT
 
+# Upscaled AprilTag images, regenerated on demand by perception/tagged_rigid_body.py
+# into its own directory. Delete it to force a rebuild.
+perception/.tag_cache/
+
 # Manual backups. Use git.
 *.bak
 *.bak_*

@@ -56,13 +56,37 @@ before or after. Scripts and tests run from `control/` work without it.
 
 ## Import
 
+In code, import through the Python wrappers — the form every shipped script
+uses:
+
 ```python
-from hardware_bindings.motor import motor_bindings      # or: from hardware_bindings.motor.py_motor import ...
-from hardware_bindings.imu import imu_nanobind
+from hardware_bindings.motor.py_motor import CanMotorController, motor_bindings
+from hardware_bindings.imu.py_imu import IMU, imu_nanobind
 from hardware_bindings.ft_servo import FtServo
 ```
 
-Verify a build from `control/`:
+The third line is a wrapper import too: `ft_servo/__init__.py` loads
+`ft_servo_ext` and exports `FtServo`. The package path — `from
+hardware_bindings.motor import motor_bindings`, and the same for `.imu` — is
+**not** an alternative spelling of the first two lines: the two forms are
+mutually exclusive within one process. `py_motor.py` and `py_imu.py` load
+their `.abi3.so` by file path (`importlib.util.spec_from_file_location`) under
+the bare names `motor_bindings` and `imu_nanobind` and never publish them in
+`sys.modules`, while `.abi3.so` is a suffix the import system recognises and
+`motor/__init__.py` and `imu/__init__.py` are empty — so the package path
+finds no such attribute on the package, falls through to a submodule import,
+and dlopens the same file a second time under a second module name (CPython's
+extension cache is keyed on the path *and* the name). nanobind then hits the
+duplicate type registration and aborts the process: `nanobind: type '...' was
+already registered!` and SIGABRT, not an exception anything can catch.
+`humanoid_dropout_probe.py` is the worked example — it wants the raw
+`motor_bindings.CanMotorController`, bypassing `py_motor`'s wrapper class, and
+still takes it from `py_motor` so the `.so` is loaded exactly once.
+
+Verify a build from `control/` — a one-shot check that imports neither
+`py_motor` nor `py_imu`, so
+each `.so` is loaded once and the package-path form is safe here and only
+here:
 
 ```bash
 python -c "from hardware_bindings.motor import motor_bindings; from hardware_bindings.imu import imu_nanobind; from hardware_bindings.ft_servo import FtServo; print('hardware_bindings OK')"
