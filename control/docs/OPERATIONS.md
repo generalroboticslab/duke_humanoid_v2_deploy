@@ -22,6 +22,23 @@ Three roles, which may or may not be three boxes:
 The monitor UI is served on port 8080 by T4. From a laptop, tunnel it:
 `ssh -L 18081:localhost:8080 <user>@<robot-host>` then open `localhost:18081`.
 
+**The `taskset` core lists in section 2 are this rig's partition, not a
+requirement.** This robot computer has 24 logical CPUs, and the ladder gives
+each pinned process a disjoint set of them: the camera server 3 (`10-12`), the
+gripper service 1 (`22`), real_env 5 (`0-4`), the monitor 9 (`13-21`), the
+recorder 2 (`8-9`); T6 is unpinned on purpose, for the reason its heading
+gives. On another machine re-derive the sets from your own `nproc` and keep the
+rule rather than the numbers: real_env gets cores nobody else touches, the
+camera server and the monitor get separate sets, and T6 stays unpinned.
+
+Copying the literals onto a smaller machine fails two ways. A set entirely
+above the last CPU — T2's `-c 22` on anything with fewer than 23 — makes
+`taskset` exit 1 with `failed to set pid N's affinity: Invalid argument`, and
+the process never starts, which reads as a robot fault rather than a core
+count. A set that only partly overlaps fails silently instead: `-c 13-21` on a
+16-thread box succeeds and pins the monitor to 3 cores instead of the 9 its
+budget assumes, so detections just degrade.
+
 ## 1. The plan server (GPU machine)
 
 Start it on the GPU machine, from a checkout of this repository, in an
@@ -29,19 +46,25 @@ environment with cuRobo (commit `8e734f3`) installed and `legged_env_v2`
 reachable:
 
 ```bash
-cd <repo> && PYTHONPATH=<legged_env_v2>:$PYTHONPATH python control/curobo_plan_server.py --port 9880
+cd <repo> && HUMANOID_LEGGED_ENV_ROOT=<legged_env_v2> python control/curobo_plan_server.py --port 9880
 ```
 
 Flags: `--port` (default 9880, the port `PLAN_SERVER` points at),
 `--hand-z-floor` / `--no-hand-z-floor`, `--hand-floor-weight`. The server
 imports `mj_envs.tasks.visual_manipulation.curobo` from `legged_env_v2` at
-module level, before argument parsing. It puts `humanoid_site.LEGGED_ENV_ROOT`
-on `sys.path` itself, so the `PYTHONPATH` prefix above is one of three ways to
-point at the checkout — `HUMANOID_LEGGED_ENV_ROOT` in the environment or
-`LEGGED_ENV_ROOT` in `control/site_local.py` do the same — and a missing or
-mis-pointed checkout fails at import, `--help` included, with an `ImportError`
-that names those three remedies. `legged_env_v2` is not public at the time of
-release (see the repository README, "Install").
+module level, before argument parsing, and it puts
+`humanoid_site.LEGGED_ENV_ROOT` at the FRONT of `sys.path` itself. That is why
+the environment variable above is the setting that works: `LEGGED_ENV_ROOT`
+defaults to the bundled `control/legged_env_bundle/` whenever that directory
+exists — it always does in a release checkout — and the bundle carries the
+robot side only, no planner, so a `legged_env_v2` reachable through
+`PYTHONPATH` is shadowed by it and the import fails anyway. Set
+`HUMANOID_LEGGED_ENV_ROOT` in the environment as above, or `LEGGED_ENV_ROOT`
+in `control/site_local.py`; either one moves what goes on the front of
+`sys.path`. A missing or mis-pointed checkout fails at import, `--help`
+included, with an `ImportError` naming the remedies — its third suggestion,
+`PYTHONPATH`, is the one the bundle shadows. `legged_env_v2` is not public at
+the time of release (see the repository README, "Install").
 
 Then verify from the robot computer BEFORE touching the robot:
 
@@ -58,7 +81,7 @@ print when the server is unreachable or its CUDA context has died
 
 ```bash
 ssh <gpu-host> 'pkill -f "plan_serve[r]"'
-ssh <gpu-host> 'cd <repo> && PYTHONPATH=<legged_env_v2>:$PYTHONPATH setsid nohup python control/curobo_plan_server.py --port 9880 > plan_server.log 2>&1 </dev/null & exit 0'
+ssh <gpu-host> 'cd <repo> && HUMANOID_LEGGED_ENV_ROOT=<legged_env_v2> setsid nohup python control/curobo_plan_server.py --port 9880 > plan_server.log 2>&1 </dev/null & exit 0'
 ```
 
 then wait ~40 s for `listening` in `plan_server.log` (the CUDA warm-up) and
@@ -77,6 +100,8 @@ normal, not a hang.
 
 Every terminal starts in `<repo>/control` with the project environment active.
 The plan server (T5) is the one exception: it runs on the GPU machine, section 1.
+The `taskset` core lists below are this rig's 24-CPU partition; on any other
+machine re-derive them first (section 0).
 
 ### T0 — after ANY robot power cycle (mandatory)
 
@@ -101,6 +126,13 @@ Both RealSense cameras sit side by side on the head gimbal. Port order IS
 stream order: `--base-port` (5555) is the LEFT camera, the next port (5556) is
 the RIGHT one. Downstream code identifies cameras by port, so keep the order
 stable across restarts.
+
+The RealSense host packages — the udev rules that make the camera nodes openable
+by a non-root user, and the `rs-*` command-line tools — are not installed by the
+`pyrealsense2` wheel in `requirements.txt`; they come from Intel's
+`librealsense2-udev-rules` and `librealsense2-utils`, the latter supplying
+`rs-enumerate-devices` (SETUP.md, "Cameras"). Without them the server cannot open
+the cameras as a non-root user and `rs-enumerate-devices` below does not exist.
 
 ```bash
 taskset -c 10-12 python ../perception/camera_streaming_utils.py \

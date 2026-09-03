@@ -3,8 +3,8 @@
 What has to be in place on the **robot computer** before the bring-up ladder
 in [OPERATIONS.md](OPERATIONS.md) can start: the Python environment, the C++
 motor/IMU/servo extensions, the CAN buses, the gripper serial ports, the
-hand-eye calibration, and the network between the robot computer, the
-workstation and the GPU machine.
+hand-eye calibration, the network between the robot computer, the workstation
+and the GPU machine, and the host packages the RealSense cameras need.
 
 `<repo>` is the repository root (the directory holding `control/`,
 `perception/` and `requirements.txt`). Unless a command says otherwise it is
@@ -20,6 +20,7 @@ Contents
 4. [Servo ports (FEETECH grippers)](#4-servo-ports-feetech-grippers)
 5. [Hand-eye calibration](#5-hand-eye-calibration)
 6. [Network](#6-network)
+7. [Cameras (Intel RealSense)](#7-cameras-intel-realsense)
 
 ---
 
@@ -39,12 +40,17 @@ Notes:
 
 - `requirements.txt` pins the versions the robot actually runs. `torch` is
   listed by version only; install the `+cpu` / `+cu1xx` / `+rocm` wheel that
-  matches your hardware (see the comment block in `requirements.txt`).
+  matches your hardware (see the comment block in `requirements.txt`). The
+  build the robot runs is `2.9.1+rocm6.3`; another wheel of the same version
+  is a different binary in the same process as MuJoCo and the compiled
+  extensions, so re-verify it — bring `humanoid_real_env.py` up a few times
+  and check that it reaches its `Ready` line — before driving a robot on it.
 - Two dependencies are deliberately absent because they are checkouts, not
   PyPI packages: `legged_env_v2` and cuRobo. Neither is needed on the robot:
   `control/legged_env_bundle/` carries the deploy run directories, the meshes
   and the CPU-side Python the robot loop imports, and `humanoid_site` uses it
-  whenever no `legged_env_v2` checkout sits beside this repository. Both are
+  whenever `control/legged_env_bundle/` is present, so a release checkout never
+  binds to an unrelated sibling that happens to carry the name. Both are
   needed on the GPU machine that runs the plan server. See the top-level
   `README.md`, "Install". Do not `pip install mj_envs`: that PyPI package is
   an unrelated project whose name collides with the upstream package.
@@ -69,6 +75,36 @@ Then tell the stack where things are:
 ```bash
 cp control/site_local.example.py control/site_local.py   # and edit
 ```
+
+### Real-time scheduling (`cap_sys_nice`)
+
+The motor layer runs thirteen real-time threads — one receiver and one sender
+per CAN bus, plus the motion-control loop — and each of them asks the kernel
+for `SCHED_FIFO` priority 90 as it starts. An unprivileged interpreter may not
+do that, and the code does not treat the refusal as fatal: all thirteen print
+`Failed to set RT priority ...: Operation not permitted` (the motion-control
+and receiver threads add a `Running without RT scheduling` line), the warnings
+scroll past in the middle of start-up, and the loop then runs under the
+ordinary fair-share scheduler with no timing guarantee at all.
+
+The permission is a property of the interpreter binary, so grant it once per
+environment (`setcap` and `getcap` are in `libcap2-bin`):
+
+```bash
+sudo setcap cap_sys_nice=ep "$(readlink -f "$(which python)")"
+getcap "$(readlink -f "$(which python)")"     # -> ... cap_sys_nice=ep
+```
+
+`readlink -f` matters because `.venv/bin/python` is a symlink and the
+capability lives on the file the kernel actually executes — which is also the
+file you replace when you rebuild the environment, create a new venv or
+upgrade the interpreter. It does not survive that: re-run both lines and
+confirm with `getcap` after any such change, and note that capping one
+interpreter says nothing about another one on the same machine. Capping does
+not disturb the compiled extensions of section 2: they resolve
+`libnanobind-abi3.so` through the `$ORIGIN` RUNPATH of 2.4, which still
+resolves under the loader's secure mode (that mode does drop
+`LD_LIBRARY_PATH`, which 2.4 explains is never needed here).
 
 ---
 
@@ -262,6 +298,18 @@ The body motors sit on six CAN buses driven by USB-CAN adapters
 `can23`, `can24`, `can25`** (`can9` carries the left arm). Those names are
 what `humanoid_setup_can.py` and the motor layer expect.
 
+### System packages
+
+`humanoid_setup_can.py` shells out to `ip` and to `usbreset`. `ip`
+(`iproute2`) is on every Ubuntu; `usbreset` comes from `usbutils`, which a
+standard install has but a minimized image can drop. Check with
+`which usbreset`, and if it is missing install it before the first bring-up —
+without it the script cannot reset an adapter that refuses to come up:
+
+```bash
+sudo apt install usbutils
+```
+
 ### Kernel modules
 
 ```bash
@@ -308,8 +356,8 @@ down. `python humanoid_setup_can.py --down` tears the buses down again, and
 `--interfaces <name> ...` replaces the default six with any other list (for
 example `--interfaces can26` for the single-motor GL40 bench of
 `hardware_bindings/motor/gl_bench.py`, which used to have its own copy of this
-script). The script calls `sudo ip` / `sudo ifconfig` / `sudo usbreset`
-(`net-tools`, `usbutils`), so run it as a user who may sudo.
+script). The script calls `sudo ip` and `sudo usbreset` (`usbutils`, see
+"System packages" above), so run it as a user who may sudo.
 
 Any `[RECV] error frame` in the `humanoid_real_env.py` terminal, or a bus
 stuck in ERROR-WARNING -> power-cycle again; if it recurs, inspect the harness
@@ -413,7 +461,7 @@ Refines camera extrinsics (`T_base_link_to_camera`) and tagged-cube mounting off
 (`T_obj_link_to_object`) from live robot data. Replaces hard-coded `CAMERA_TRANSFORMS` in
 `perception/camera_tag_detector.py`.
 
-**Prerequisites:** robot telemetry on port 9870, cameras on 5555/5556, `tag_cube_0`/`tag_cube_1` bolted to wrists.
+**Prerequisites:** robot telemetry on port 9870, cameras on 5555/5556 (section 7), `tag_cube_0`/`tag_cube_1` bolted to wrists.
 
 **Where the data lives:** everything below reads and writes `control/calibration/`.
 That directory is **not shipped** — it is per-rig data, created by the
@@ -558,7 +606,7 @@ for every address, so a stack you have not configured talks only to itself.
 | `WORKSTATION_IP` | `127.0.0.1` | where the robot PUSHES telemetry and subscribes for commands: `humanoid_real_env.py --telemetry-ip / --high-level-controller-ip / --arm-sender-ip` default to it |
 | `PLAN_SERVER` | `tcp://127.0.0.1:9880` | cuRobo plan/MPC server endpoint (`humanoid_curobo_client`, `humanoid_plan_server_probe.py --server`) |
 | `VICON_IP` | `127.0.0.1` | Vicon tracker host; read only with `--vicon` |
-| `CAMERA_SERIALS` | empty | declared here but has no reader in `control/`. The copy that is read is `perception/vs_site.CAMERA_SERIALS` (set in `perception/vs_site_local.py` or `VS_CAMERA_SERIALS`): by the standalone detector `perception/camera_tag_detection.py` and, when it is non-empty, by the camera streaming server (OPERATIONS.md, T1) as the default of `--devices <left-serial> <right-serial>` — so it is how a rig pins its camera -> port order once. An explicit `--devices` still wins; with neither, USB enumeration order decides |
+| `CAMERA_SERIALS` | empty | declared here but has no reader in `control/`. The copy that is read is `perception/vs_site.CAMERA_SERIALS` (set in `perception/vs_site_local.py` or `VS_CAMERA_SERIALS`): by the standalone detector `perception/camera_tag_detection.py` and, when it is non-empty, by the camera streaming server (OPERATIONS.md, T1) as the default of `--devices <left-serial> <right-serial>` — so it is how a rig pins its camera -> port order once (section 7 lists the serials). An explicit `--devices` still wins; with neither, USB enumeration order decides |
 | `HAND_USB_SERIAL_LEFT` / `HAND_USB_SERIAL_RIGHT` | one example rig's boards | the gripper driver boards' USB serials (section 4); the gripper service's `/dev/serial/by-id` fallback when the udev symlinks are absent |
 | `RECORDINGS_DIR` | `~/recordings` | default output of `humanoid_mission_recorder.py --out`, `humanoid_arm_forensics.py --out-dir`, `humanoid_camera_view.py --out-dir` |
 
@@ -573,3 +621,53 @@ or dial the literals (`humanoid_site.py` lists them per setting), so a
 non-default port in `site_local.py` moves real_env away from them. Treat the
 ports in the table above as fixed unless you change every call site together
 (ARCHITECTURE_MAP.md, "Port / channel map").
+
+---
+
+## 7. Cameras (Intel RealSense)
+
+The two cameras (OPERATIONS.md, T1) are read through `pyrealsense2`, which
+`requirements.txt` installs. That wheel is the Python module and nothing else:
+it carries neither the udev rules that make the camera device nodes openable
+by an ordinary user nor the `rs-*` command-line tools. Both come from Intel's
+librealsense apt repository — add it the way Intel's distribution notes for
+your Ubuntu release describe, then:
+
+```bash
+sudo apt install librealsense2-utils librealsense2-udev-rules
+sudo udevadm control --reload-rules && sudo udevadm trigger
+```
+
+Unplug and replug both cameras afterwards — a udev rule applies when a device
+is added, not to one already attached — and verify:
+
+```bash
+rs-enumerate-devices -s
+```
+
+which prints one line per camera with its serial number. `librealsense2-utils`
+is the package that supplies that binary; `librealsense2-udev-rules` is what
+sets the camera nodes to mode `0666`, so the cameras need no group membership
+(without the rules the nodes stay `root:video` and only `video` members can
+open them; the `dialout` group in section 3 is for the IMU and the gripper
+boards, which are USB-serial devices, and does nothing for cameras).
+
+The serials are how a rig pins each camera to a port: they go into
+`perception/vs_site_local.py` as `CAMERA_SERIALS` (section 6), or on the
+camera server's `--devices` (OPERATIONS.md, T1), left camera first. With
+neither, the server takes USB enumeration order and a left/right swap is
+silent — tags land in the wrong camera frame while every log line looks
+healthy.
+
+If you will not add Intel's repository, the same two things still have to
+exist: a copy of Intel's `60-librealsense2-udev-rules.rules` under
+`/etc/udev/rules.d/` (or the device permissions arranged some other way), and
+some way to read the serials — the wheel `requirements.txt` already installs
+can do that much:
+
+```bash
+python -c "import pyrealsense2 as rs; print([d.get_info(rs.camera_info.serial_number) for d in rs.context().query_devices()])"
+```
+
+It opens the same device nodes as `rs-enumerate-devices`, so the permissions
+are the part that cannot be skipped.

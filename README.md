@@ -171,7 +171,11 @@ Install `torch` first, from the index that matches your hardware. A plain
 `torch==2.9.1` install on Linux resolves to the CUDA build and pulls
 ~3 GB of `nvidia-*` wheels onto a robot computer that has no NVIDIA GPU; the
 CPU wheel above runs everything in this repository (the robot itself uses the
-`+rocm6.3` build, see the comment block in `requirements.txt`).
+`+rocm6.3` build, see the comment block in `requirements.txt`). The version is
+pinned, the build is not, and the torch wheel is the largest block of native
+code in the process the control loop shares with MuJoCo and the C++ bindings,
+so treat a different build as a change to the stack: bring the robot up and
+confirm a clean start on the bench before that build drives it.
 
 `requirements.txt` pins the versions the robot actually runs. Two dependencies
 are deliberately absent because they are checkouts, not PyPI packages:
@@ -188,12 +192,25 @@ CPU-side Python packages, the Vicon calibration; `MANIFEST.md5` lists every
 file), plus, as before, the operator decision core
 (`humanoid_auto_operator.py` + `auto_operator/`), the perception bundle
 (`perception/`: streaming server, standalone tag detector, tagged-body
-registry), the gripper service, and every test that does not load the MJCF.
-**What does not:** `humanoid_real_env.py` (T3), `humanoid_monitor.py` (T4,
-loads the MJCF for the viser scene), `humanoid_curobo_reach.py` (T6),
-`humanoid_plan_server_probe.py`, the plan server, and the MJCF-backed tests
-(they skip, each saying why). The symptom of a missing or mis-pointed checkout
-is, at start-up,
+registry), the gripper service, and the test suite bar the 3 cuRobo-dependent
+cases (they skip, each saying why). In bring-up terms that is every terminal
+but T5. **What does not:** the plan server (`curobo_plan_server.py`, T5, on
+the GPU machine), whose cuRobo planner and scene are upstream code the bundle
+deliberately does not carry, and `rebuild_deploy_model.py`, the maintenance
+tool that regenerates the calibrated model from the full upstream asset tree.
+The plan server fails at import with an `ImportError` naming the checkout it
+wants.
+
+`control/legged_env_bundle/` is what `LEGGED_ENV_ROOT` resolves to when
+nothing overrides it: byte-exact copies of the two run directories the robot
+resolves (the released checkpoint and the calibrated robot model) together
+with the meshes the model references and the Python the robot loop imports,
+laid out exactly as the upstream tree is, so nothing else needs configuring.
+Set `HUMANOID_LEGGED_ENV_ROOT` in the environment, or `LEGGED_ENV_ROOT` in
+`control/site_local.py`, to point at a full checkout instead; that is what the
+plan server and the model-rebuild tool need, and nothing else does. Point
+either at a path that does not hold `mj_envs/deploy/runs/<task>/` and the
+symptom is, at start-up,
 
 ```
 FileNotFoundError: deploy model not found at …/legged_env_v2/mj_envs/deploy/runs/<task>/robot.xml — the control stack reads it from legged_env_v2 (mj_envs/deploy/runs/<task>/robot.xml); set HUMANOID_LEGGED_ENV_ROOT in the environment, or LEGGED_ENV_ROOT in control/site_local.py, to that checkout (README 'Install').
@@ -203,15 +220,7 @@ from `humanoid_real_env.py` and everything else that goes through
 `humanoid_base`, or MuJoCo's `ValueError: ParseXML: Error opening file
 '…/robot.xml'` from the tools that load the MJCF directly (the monitor, the
 reach tool, the probe, the first two only once they build their scene, so
-their `--help` still prints). The plan server fails at import with an
-`ImportError` naming the same remedies. Set `HUMANOID_LEGGED_ENV_ROOT` in the
-environment, or `LEGGED_ENV_ROOT` in `control/site_local.py`, to the checkout
-that holds `mj_envs/deploy/runs/<task>/`, only needed for the plan server and
-the model-rebuild tool. Without either setting, `control/legged_env_bundle/`
-is used: byte-exact copies of the two run directories the robot resolves (the
-released checkpoint and the calibrated robot model) together with the meshes
-the model references and the Python the robot loop imports, laid out exactly
-as the upstream tree is, so nothing else needs configuring.
+their `--help` still prints).
 
 Then tell the stack where things are:
 
