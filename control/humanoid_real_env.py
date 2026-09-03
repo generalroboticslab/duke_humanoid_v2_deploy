@@ -764,14 +764,14 @@ class HumanoidRealEnv(HumanoidBase):
 
         # EE state: wrist poses in base FLU frame ride the 9870 telemetry as `ee`
         # (humanoid_monitor.py, humanoid_auto_operator.py and humanoid_curobo_reach.py
-        # read them); no separate 9875 socket is bound — the port in the log line
-        # below is historical.
+        # read them); no separate 9875 socket is bound — the 9875 some older
+        # design notes still list is historical.
         # FK is free — update_kinematics() already populates mj_data.xpos/xmat each step.
         self.ee_frame_ids = {
             _EE_LEFT_NAME:  mujoco.mj_name2id(self.mj_model, _MJ_OBJ_FROM_FRAME[_EE_LEFT_TYPE],  _EE_LEFT_NAME),
             _EE_RIGHT_NAME: mujoco.mj_name2id(self.mj_model, _MJ_OBJ_FROM_FRAME[_EE_RIGHT_TYPE], _EE_RIGHT_NAME),
         }
-        _log.info("[ENV] EE state broadcasting on tcp://*:9875")
+        _log.info("[ENV] EE state on the 9870 telemetry stream as `ee`")
 
         # Recording state for simulation replay
         self.recorder = HumanoidRecorder(record_path=record_path, enabled=record)
@@ -819,7 +819,17 @@ class HumanoidRealEnv(HumanoidBase):
         t = triggers or DEFAULT_TRIGGERS
         self.ctrl = KeyboardGampadController(kb_triggers=t["kb"], js_triggers=t["js"])
         self.ctrl.start()
-        _log.info("[CTRL] Keyboard: W/S=fwd/back  A/D=strafe  Q/E=turn  X/Z=torque+/-  R=reset  ESC=shutdown")
+        # The banner lists what is ACTUALLY bound, and is written out rather
+        # than derived from `t`: t["kb"] is empty, so KeyboardGampadController
+        # substitutes its own default map (esc/space) and a derived line would
+        # under-report ESC. Keyboard axes are LeftX/LeftY/RightX
+        # (KeyboardThread.get_axes) while forward velocity reads RightY, so W/S
+        # move an axis this loop never reads — forward/back is gamepad-only.
+        # Torque and reset have no keyboard keys either; torque is X/B on the
+        # gamepad, and no map binds [RESET] at all.
+        _log.info("[CTRL] Keyboard: A/D=strafe  Q/E=turn  ESC=shutdown")
+        _log.info("[CTRL] Gamepad: RightY=fwd/back  LeftX=strafe  RightX=turn  "
+                  "A=shutdown  X/B=torque-/+  LB=nav pause/resume")
 
         # Arm target tracking logic (for HumanoidRandArmsAdditiveCtrlTracking)
         # Always init arm targets — needed for arm_receiver stream even when
