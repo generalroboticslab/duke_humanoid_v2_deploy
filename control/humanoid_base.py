@@ -51,6 +51,11 @@ MOTOR_TORQUE_CORRECTION_RATIO = {
 URDF_JOINT_NAMES, JOINT_LOWER_LIMITS, JOINT_UPPER_LIMITS = get_joint_info_from_mjcf(MJCF_MODEL_PATH)
 
 # Joint group slices (based on motor_setup_dict ordering in humanoid_config.py)
+# Longest wait for the IMU's first sample at start-up. The driver streams at 200 Hz, so
+# a healthy unit answers in milliseconds; this only has to cover the serial port opening
+# and the reader thread's first read.
+_IMU_FIRST_SAMPLE_TIMEOUT_S = 3.0
+
 _MOTOR_LEG_SLICE = slice(0, 13)   # waist (0) + left leg (1-6) + right leg (7-12)
 _MOTOR_ARM_SLICE = slice(13, 27)  # left arm (13-19) + right arm (20-26)
 _MOTOR_CAMERA_SLICE = slice(27, 31)  # cam yaw/pitch left (27-28) + right (29-30); see cam_* in motor_setup_dict
@@ -63,6 +68,12 @@ _MOTOR_ENABLE_SLICES = {
     # bench reach: policy-driven gaze + IK arms with the legs limp (hanging robot)
     "arm_camera": (_MOTOR_ARM_SLICE, _MOTOR_CAMERA_SLICE),
 }
+
+# Firmware mode carried in every motor status frame (MotorModeStatus in
+# hardware_bindings/motor/motor.hpp). An enabled motor reads Running; Unknown is what
+# enable() writes before it starts sending, so it survives only where nothing answered.
+_MOTOR_MODE_RUNNING = 2
+_MOTOR_MODE_NAMES = {0: "Reset", 1: "Calibration", 2: "Running", 255: "no answer"}
 
 
 class HumanoidBase:
@@ -102,6 +113,31 @@ class HumanoidBase:
         self.control_freq = 200
         self.dt = 1.0 / self.control_freq
 
+        # --- MuJoCo (gravity compensation) ---
+        # BEFORE the motor and the IMU, deliberately. Two reasons, the second found on
+        # hardware 2026-09-03: (1) a bad or missing MJCF must fail while nothing is open
+        # and no CAN socket exists, not after six buses are up; (2) compiling this model
+        # (42 meshes, ~1.8 GB peak) once the CAN and IMU threads are running has been
+        # observed to fail non-deterministically under some torch builds, with a different
+        # mesh each run ("at least 4 vertices required"), an allocation refusal, or a
+        # SIGSEGV. Same machine, same files, same code: only the wheel differed. Loading
+        # the model first makes the whole class unreachable.
+        if add_right_ee:
+            # Build spec with EE cube so RNE accounts for its mass.
+            _spec = mujoco.MjSpec.from_file(MJCF_MODEL_PATH)
+            _geom = _spec.body("wrist_3_R").add_geom()
+            _geom.name = "ee_cube"
+            _geom.type = mujoco.mjtGeom.mjGEOM_BOX
+            _geom.size = [0.02, 0.02, 0.02]
+            _geom.pos = [0.04, 0.0, 0.0]
+            _geom.mass = 0.4
+            _geom.contype = _geom.conaffinity = 1
+            self.mj_model = _spec.compile()
+            _log.info("[BASE] EE cube attached to wrist_3_R (0.04 m / 0.4 kg) — gravity comp updated")
+        else:
+            self.mj_model = mujoco.MjModel.from_xml_path(MJCF_MODEL_PATH)
+        self.mj_data = mujoco.MjData(self.mj_model)
+
         # --- Motor ---
         if use_fake:
             self.motor = FakeMotorController(motor_setup)
@@ -121,22 +157,6 @@ class HumanoidBase:
         else:
             self.imu = IMU()
 
-        # --- MuJoCo (gravity compensation) ---
-        if add_right_ee:
-            # Build spec with EE cube so RNE accounts for its mass.
-            _spec = mujoco.MjSpec.from_file(MJCF_MODEL_PATH)
-            _geom = _spec.body("wrist_3_R").add_geom()
-            _geom.name = "ee_cube"
-            _geom.type = mujoco.mjtGeom.mjGEOM_BOX
-            _geom.size = [0.02, 0.02, 0.02]
-            _geom.pos = [0.04, 0.0, 0.0]
-            _geom.mass = 0.4
-            _geom.contype = _geom.conaffinity = 1
-            self.mj_model = _spec.compile()
-            _log.info("[BASE] EE cube attached to wrist_3_R (0.04 m / 0.4 kg) — gravity comp updated")
-        else:
-            self.mj_model = mujoco.MjModel.from_xml_path(MJCF_MODEL_PATH)
-        self.mj_data = mujoco.MjData(self.mj_model)
 
         # Root body: the body with the freejoint (used for xpos/subtree_com lookups)
         self.root_body_id = next(
@@ -158,10 +178,20 @@ class HumanoidBase:
         self.compute_gravity_compensation()  # warm up MuJoCo data structures
         _log.info(f"[BASE] Gravity comp ready: {self.mj_model.nq} DoF, scale={self.gravity_comp_scale}")
 
-        # --- IMU validation (after MuJoCo warmup so IMU has had time to start) ---
+        # --- IMU validation ---
+        # Bounded wait, not an incidental one. This check used to be documented as
+        # "after MuJoCo warmup so IMU has had time to start": the model compile happening
+        # to sit between IMU construction and this line was the entire startup guarantee,
+        # so reordering the constructor above turned a healthy IMU into "not responding".
+        # Wait for the first sample explicitly instead, and say how long we waited.
         if not use_fake:
+            _imu_deadline = time.monotonic() + _IMU_FIRST_SAMPLE_TIMEOUT_S
+            while getattr(self.imu, "counter", 0) == 0 and time.monotonic() < _imu_deadline:
+                time.sleep(0.01)
             if not hasattr(self.imu, 'counter') or self.imu.counter == 0:
-                raise RuntimeError("[BASE] IMU not responding — check connection!")
+                raise RuntimeError(
+                    f"[BASE] IMU not responding after {_IMU_FIRST_SAMPLE_TIMEOUT_S:.1f} s "
+                    "— check connection!")
             gravity_norm = np.linalg.norm(self.imu.transformed_gravity_vec)
             if abs(gravity_norm - 1) > 0.1:
                 raise RuntimeError(
@@ -177,6 +207,19 @@ class HumanoidBase:
         
         if self.enable_motor != "false":
             self.motor.enable(self._build_motor_enable_mask())
+            # enable() reports failure by printing and returns void, so start-up used to
+            # walk straight past a red "motors enable failed" into "[BASE] Ready" and the
+            # operator read a healthy start-up while a joint hung limp. Ask the firmware
+            # instead, and refuse to go on. Aborting here costs nothing physically:
+            # motion control starts below, so nothing has ever been commanded and the
+            # robot is left exactly as limp as it already was.
+            not_running = self._masked_motors_not_running()
+            if not_running:
+                raise RuntimeError(
+                    f"[BASE] {len(not_running)} joint(s) did not enable: "
+                    f"{', '.join(not_running)} — check motor power and the CAN harness, "
+                    f"then restart. To start without that group on purpose, set "
+                    'enable_motor to "leg"/"arm"/"camera"/"arm_camera".')
 
         self.motor.set_max_torque_ratio(torque_limit)
         self.motor.start_motion_control_continuously()
@@ -319,7 +362,19 @@ class HumanoidBase:
             if i % 50 == 0:
                 _log.info(f"  {i}/{num_steps} ({100*t:.0f}%)")
 
-        _log.info("[BASE] Initial pose reached")
+        # prepare() re-enabled above and the ramp has just run, so this reads live status
+        # frames: do not claim the pose was reached while a joint the mask asked for is
+        # limp. Not fatal here, unlike in __init__ — the robot is holding this stance
+        # under real gains and raising would hand it straight to the caller's shutdown()
+        # wind-down. Report it and leave the decision to the operator.
+        not_running = self._masked_motors_not_running()
+        if not_running:
+            _log.error(
+                f"[BASE] NOT READY — ramp finished, but {len(not_running)} joint(s) are "
+                f"not enabled: {', '.join(not_running)}. Those joints are limp and the "
+                f"pose is held by the rest; do not start the policy.")
+        else:
+            _log.info("[BASE] Initial pose reached")
 
     def _build_motor_enable_mask(self) -> np.ndarray:
         """Return a bool array of length n_joints: True = send Enable CAN frame, False = leave in Reset.
@@ -335,6 +390,25 @@ class HumanoidBase:
         for sl in _MOTOR_ENABLE_SLICES[self.enable_motor]:
             mask[sl] = True
         return mask
+
+    def _masked_motors_not_running(self) -> list[str]:
+        """Names ("joint(mode)") of the joints enable_motor asked for that are not Running.
+
+        This is enable()'s own success condition read back: it clears every masked entry
+        of mode_status to Unknown before it starts sending and the receive thread refills
+        it from the status frames, so a motor that never answered stays Unknown instead
+        of reading back a stale Running. Returns [] when the controller does not report
+        mode_status at all (FakeMotorController) — absence of evidence is not a fault.
+        """
+        mode = np.asarray(getattr(self.motor, "mode_status", ()), dtype=int)
+        if mode.size != self.n_joints:
+            return []
+        mask = self._build_motor_enable_mask()
+        return [
+            f"{URDF_JOINT_NAMES[i]}({_MOTOR_MODE_NAMES.get(int(mode[i]), int(mode[i]))})"
+            for i in range(self.n_joints)
+            if mask[i] and mode[i] != _MOTOR_MODE_RUNNING
+        ]
 
     # -------------------------------------------------------------------------
     # Shutdown
