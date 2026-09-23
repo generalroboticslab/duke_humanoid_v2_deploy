@@ -6,7 +6,7 @@
 bridge, the cuRobo planning client, the gripper service and the autonomous
 operator.**
 
-**Paper** (preprint coming) &middot;
+**[Paper](https://arxiv.org/abs/2609.08905)** &middot;
 **[Project entry point](https://github.com/generalroboticslab/duke_humanoid_v2)** &middot;
 **[Simulation &amp; training](https://github.com/generalroboticslab/duke_humanoid_v2_simulation)** &middot;
 **[Operations runbook](control/docs/OPERATIONS.md)**
@@ -340,14 +340,14 @@ repository. Third-party components keep their own licences (see
 
 ## Citation
 
-The preprint is not posted yet. When it is, this block and the link row at the
-top will carry the reference.
-
 ```bibtex
-@misc{duke_humanoid_v2,
-  title  = {Visible-Reachable Workspace for Perception-Aware Humanoid Design},
-  author = {Boxi Xia and Zijiang Yang and Ryan Shin and Bokuan Li and Eric Lu and Jacob Lee and Jiaxun Liu and Boyuan Chen},
-  year   = {2026},
-  url    = {https://github.com/generalroboticslab/duke_humanoid_v2}
+@misc{xia2026visiblereachableworkspaceperception,
+      title={Visible-Reachable Workspace for Perception-Aware Humanoid Design}, 
+      author={Boxi Xia and Zijiang Yang and Ryan Shin and Bokuan Li and Eric Wun-Hao Lu and Jacob Lee and Jiaxun Liu and Boyuan Chen},
+      year={2026},
+      eprint={2609.08905},
+      archivePrefix={arXiv},
+      primaryClass={cs.RO},
+      url={https://arxiv.org/abs/2609.08905}, 
 }
 ```
