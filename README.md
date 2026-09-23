@@ -8,6 +8,7 @@ operator.**
 
 **[Paper](https://arxiv.org/abs/2609.08905)** &middot;
 **[Project entry point](https://github.com/generalroboticslab/duke_humanoid_v2)** &middot;
+**[Hardware](https://generalroboticslab.github.io/Duke_Humanoid_V2_OpenSource/)** &middot;
 **[Simulation &amp; training](https://github.com/generalroboticslab/duke_humanoid_v2_simulation)** &middot;
 **[Operations runbook](control/docs/OPERATIONS.md)**
 
